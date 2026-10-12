@@ -43,7 +43,6 @@
   const termLabel = (term) => currentLocale === "en"
     ? term
     : term.replaceAll("Spring", "春季").replaceAll("Fall", "秋季");
-  const isTeacherMissing = (teacher) => teacher === "待补充" || teacher === "Not listed";
 
   function syllabusLinks(course) {
     const links = Array.isArray(course.syllabus)
@@ -60,84 +59,11 @@
       .join("<span aria-hidden=\"true\"> · </span>");
   }
 
-  function metaChips(course) {
-    return [
-      course.provider,
-      `${course.credits} ${t("labels.credits")}`,
-      termLabel(course.term),
-      languageLabel(course.language),
-      isTeacherMissing(course.teacher) ? t("labels.teacherMissing") : course.teacher
-    ]
-      .map((item) => `<span class="meta-chip">${escapeHtml(item)}</span>`)
-      .join("");
-  }
+  const reviewerTargets = { Chambers: "reviewer-chambers", Richard: "reviewer-richard", Cindy: "reviewer-cindy" };
 
-  function renderFeatured(openIds = []) {
-    const container = $("[data-featured-list]");
-    const featuredOrder = [
-      "introduction-to-business-01",
-      "introduction-to-microeconomics-01",
-      "media-popular-culture-01",
-      "philosophy-fys-b-61",
-      "science-technology-society-01"
-    ];
-    const featured = featuredOrder
-      .map((id) => data.courses.find((course) => course.id === id))
-      .filter(Boolean);
-
-    container.innerHTML = featured
-      .map(
-        (course, index) => `
-          <details class="featured-course" name="captains-logs" data-featured-id="${escapeHtml(course.id)}" ${index === 0 ? "open" : ""}>
-            <summary>
-              <span class="featured-owner"><small class="log-index">${escapeHtml(t("labels.log"))} ${String(index + 1).padStart(2, "0")}</small>${escapeHtml(course.takenBy)}</span>
-              <span class="featured-title">${escapeHtml(course.title)}</span>
-              <span class="featured-verdict">${escapeHtml(course.verdict)}</span>
-              <span class="expand-mark" aria-hidden="true">+</span>
-            </summary>
-            <div class="featured-body">
-              <div class="feature-facts">
-                ${metaChips(course)}
-                <span class="meta-chip">${escapeHtml(t("labels.workload"))} ${course.workload}/5</span>
-                <span class="meta-chip">${escapeHtml(t("labels.groupWork"))}: ${escapeHtml(course.groupLabel)}</span>
-              </div>
-              <div class="feature-story">
-                <p class="log-attribution">${escapeHtml(course.takenBy)}${escapeHtml(t("labels.attributionSuffix"))}</p>
-                <p class="source-copy">${escapeHtml(course.experience)}</p>
-                <div class="detail-pairs">
-                  <div>
-                    <strong>${escapeHtml(t("labels.fit"))}</strong>
-                    <p>${escapeHtml(course.fit)}</p>
-                  </div>
-                  <div>
-                    <strong>${escapeHtml(t("labels.avoid"))}</strong>
-                    <p>${escapeHtml(course.avoid)}</p>
-                  </div>
-                  <div>
-                    <strong>${escapeHtml(t("labels.assessment"))}</strong>
-                    <p>${escapeHtml(course.assessment)}</p>
-                  </div>
-                  ${course.syllabus ? `<div><strong>${escapeHtml(t("labels.officialInfo"))}</strong><p>${syllabusLinks(course)}</p></div>` : ""}
-                </div>
-              </div>
-            </div>
-          </details>
-        `
-      )
-      .join("");
-
-    $$(".featured-course", container).forEach((details) => {
-      details.addEventListener("toggle", () => {
-        if (!details.open) return;
-        $$(".featured-course", container).forEach((other) => {
-          if (other !== details) other.open = false;
-        });
-      });
-    });
-    openIds.forEach((id) => {
-      const details = $$(".featured-course", container).find((item) => item.dataset.featuredId === id);
-      if (details) details.open = true;
-    });
+  function reviewerLink(name) {
+    const target = reviewerTargets[name];
+    return target ? `<a class="text-link" href="#${target}" data-reviewer-link>${escapeHtml(t("explorer.reviewer.meet").replace("{name}", name))}</a>` : "";
   }
 
   const filterForm = $("[data-filter-form]");
@@ -233,6 +159,8 @@
                 type="button"
                 role="tab"
                 aria-selected="${String(isSelected)}"
+                tabindex="${isSelected ? "0" : "-1"}"
+                id="review-tab-${escapeHtml(review.id)}"
                 aria-controls="review-panel-${escapeHtml(group.key)}"
                 data-reviewer-tab
                 data-review-id="${escapeHtml(review.id)}"
@@ -249,7 +177,7 @@
     `;
   }
 
-  function reviewPanel(course) {
+  function reviewPanel(course, hasTabs = false) {
     const source = course.source
       ? `<dt>${escapeHtml(t("labels.source"))}</dt><dd><a class="text-link" href="${escapeHtml(course.source)}" target="_blank" rel="noreferrer">${escapeHtml(t("labels.sourceLink"))}</a></dd>`
       : "";
@@ -258,7 +186,7 @@
       : "";
 
     return `
-      <div class="course-review-panel" id="review-panel-${escapeHtml(courseIdentity(course))}" role="tabpanel" data-review-panel data-review-id="${escapeHtml(course.id)}">
+      <div class="course-review-panel" id="review-panel-${escapeHtml(courseIdentity(course))}" role="${hasTabs ? "tabpanel" : "region"}" ${hasTabs ? `aria-labelledby="review-tab-${escapeHtml(course.id)}" tabindex="0"` : `aria-label="${escapeHtml(reviewerName(course))}${escapeHtml(t("labels.attributionSuffix"))}"`} data-review-panel data-review-id="${escapeHtml(course.id)}">
         <div class="course-head">
           <div>
             <div class="course-meta">
@@ -270,6 +198,7 @@
           </div>
           <span class="workload" aria-label="${escapeHtml(t("labels.workload"))} ${course.workload} out of 5">${escapeHtml(t("labels.workload"))} ${course.workload}</span>
         </div>
+        <div class="review-attribution"><span>${escapeHtml(termLabel(course.term))}</span>${reviewerLink(reviewerName(course))}</div>
         <p class="course-take">${escapeHtml(course.experience)}</p>
         <button class="course-toggle" type="button" aria-expanded="false" aria-controls="detail-${escapeHtml(course.id)}">${escapeHtml(t("courseDetails.expand"))}</button>
         <div class="course-details" id="detail-${escapeHtml(course.id)}" aria-hidden="true" inert>
@@ -303,7 +232,7 @@
           <h3 class="course-title">${escapeHtml(group.title)}</h3>
           ${reviewerTabs(group, selectedReview)}
         </div>
-        ${reviewPanel(selectedReview)}
+        ${reviewPanel(selectedReview, group.reviews.length > 1)}
       </article>
     `;
   }
@@ -336,15 +265,36 @@
         const expanded = card.dataset.expanded === "true";
         const panel = $("[data-review-panel]", card);
         if (!panel) return;
-        panel.outerHTML = reviewPanel(review);
+        panel.outerHTML = reviewPanel(review, true);
         $$("[data-reviewer-tab]", card).forEach((tab) => {
           tab.setAttribute("aria-selected", String(tab.dataset.reviewId === review.id));
+          tab.tabIndex = tab.dataset.reviewId === review.id ? 0 : -1;
         });
         bindCourseToggle(card);
         if (expanded) setCourseExpanded(card, true);
       });
     });
   }
+
+  // Tabs use one Tab stop; arrows, Home and End select another perspective.
+  courseGrid.addEventListener("keydown", (event) => {
+    const tab = event.target.closest("[data-reviewer-tab]");
+    if (!tab || !["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    const tabs = $$("[data-reviewer-tab]", tab.closest(".reviewer-tabs"));
+    const index = tabs.indexOf(tab);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+      : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+    event.preventDefault();
+    tabs[next].focus();
+    tabs[next].click();
+  });
+
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-reviewer-link]");
+    if (!link) return;
+    const target = document.getElementById(link.hash.slice(1));
+    target?.focus({ preventScroll: true });
+  });
 
   function bindCourseCard(card, groupsByKey) {
     bindCourseToggle(card);
@@ -409,14 +359,14 @@
     $("#courses").scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }
 
-  function applyReviewerFilter(reviewer, trigger) {
+  function applyReviewerFilter(reviewer) {
     applyingPreset = true;
     filterForm.reset();
     applyingPreset = false;
     filterForm.elements.takenBy.value = reviewer;
     resetPresetButtons();
-    trigger?.setAttribute("aria-pressed", "true");
     renderCourses();
+    filterForm.elements.takenBy.focus({ preventScroll: true });
     $("#courses").scrollIntoView({ behavior: scrollBehavior(), block: "start" });
   }
 
@@ -438,7 +388,7 @@
   });
 
   $$("[data-presenter-filter]").forEach((button) => {
-    button.addEventListener("click", () => applyReviewerFilter(button.dataset.presenterFilter, button));
+    button.addEventListener("click", () => applyReviewerFilter(button.dataset.presenterFilter));
   });
 
   $("[data-assessment-search]").addEventListener("click", () => {
@@ -459,17 +409,6 @@
     courseGrid.classList.toggle("compact", compactView);
     event.currentTarget.setAttribute("aria-pressed", String(compactView));
     updateDensityButton();
-  });
-
-  $$("[data-course-jump]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const id = button.dataset.courseJump;
-      const target = $(`[data-featured-id="${id}"]`);
-      if (!target) return;
-      target.open = true;
-      target.querySelector("summary")?.focus({ preventScroll: true });
-      target.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
-    });
   });
 
   function timelineState(item, now) {
@@ -660,7 +599,6 @@
     if (!locales[locale] || !locales[locale].data || !locales[locale].copy) return;
 
     const scrollY = window.scrollY;
-    const openFeaturedIds = captureOpenIds("[data-featured-list] .featured-course[open]", "data-featured-id");
     const expandedCourseIds = captureOpenIds("[data-course-grid] .course-card[data-expanded='true']", "data-course-key");
 
     currentLocale = locale;
@@ -673,7 +611,6 @@
     }
 
     window.SILS_LOCALIZE_STATIC(locale);
-    renderFeatured(openFeaturedIds);
     renderCourses(expandedCourseIds);
     renderTimeline();
     renderResources();
@@ -787,7 +724,6 @@
   }
 
   window.SILS_LOCALIZE_STATIC(currentLocale);
-  renderFeatured();
   renderCourses();
   renderTimeline();
   renderResources();

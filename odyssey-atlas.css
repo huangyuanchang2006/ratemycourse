@@ -57,9 +57,8 @@ h2 { font-size: clamp(1.9rem,3.3vw,3rem); }
   transform: translateY(2px);
   box-shadow: 0 1px 0 var(--burgundy-dark);
 }
-.featured-course, .course-card, .resource-card { box-shadow: none; }
-.featured-course summary, .course-toggle { min-height: 44px; }
-.featured-course[open] { border-color: var(--burgundy); }
+.course-card, .resource-card { box-shadow: none; }
+.course-toggle { min-height: 44px; }
 .course-card:focus-within { outline: 1px solid var(--burgundy); outline-offset: 3px; }
 .course-card:hover, .resource-card:hover { transform: none; }
 .voyage-progress { animation: none !important; }

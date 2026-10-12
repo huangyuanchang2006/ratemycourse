@@ -32,9 +32,8 @@
         </button>
       </div>
       <nav class="site-nav" id="site-nav" aria-label="主要导航" data-i18n-attr="aria-label:accessibility.mainNav">
-        <a href="#principles" data-i18n="nav.principles">三条原则</a>
+        <a href="#guides" data-i18n="presenters.context">分享者</a>
         <a href="#requirements" data-i18n="nav.requirements">毕业要求</a>
-        <a href="#picks" data-i18n="nav.picks">重点课程</a>
         <a href="#courses" data-i18n="nav.courses">全部课程</a>
         <a href="#before-register" data-i18n="nav.beforeRegister">注册前检查</a>
         <a href="#registration" data-i18n="nav.registration">注册节点</a>
@@ -46,9 +45,7 @@
       <span class="voyage-track" aria-hidden="true"><span class="voyage-progress"></span></span>
       <a href="#home"><span data-i18n="voyage.home">出发</span></a>
       <a href="#guides"><span data-i18n="presenters.context">分享者</span></a>
-      <a href="#principles"><span data-i18n="voyage.principles">三条原则</span></a>
       <a href="#requirements"><span data-i18n="voyage.requirements">毕业要求</span></a>
-      <a href="#picks"><span data-i18n="voyage.picks">重点课程</span></a>
       <a href="#courses"><span data-i18n="voyage.courses">全部课程</span></a>
       <a href="#before-register"><span data-i18n="voyage.beforeRegister">注册前检查</span></a>
       <a href="#registration"><span data-i18n="voyage.registration">注册节点</span></a>
@@ -68,8 +65,8 @@
             <span data-i18n="hero.tags.2">日语仍在学习中</span>
           </div>
           <div class="hero-actions">
-            <a class="button button-primary" href="#principles" data-i18n="hero.primaryAction">开始浏览</a>
-            <a class="text-link" href="#courses" data-i18n="hero.secondaryAction">查看全部课程</a>
+            <a class="button button-primary" href="#courses" data-i18n="hero.primaryAction">开始浏览</a>
+            <a class="text-link" href="#guides" data-i18n="hero.secondaryAction">认识分享者</a>
           </div>
         </div>
 
@@ -94,7 +91,7 @@
           <p class="presenter-intro" data-i18n="presenters.intro">每一张卡片都从课程视角和个人入口出发：先看关注点，再打开相关课程日志，或通过社媒联系分享者。</p>
         </div>
         <div class="presenter-grid">
-          <article class="presenter-card presenter-richard" data-reveal="pending">
+          <article id="reviewer-richard" tabindex="-1" class="presenter-card presenter-richard" data-reveal="pending">
             <div class="presenter-portrait-frame">
               <img
                 src="assets/richard-portrait-web.jpg"
@@ -133,7 +130,7 @@
               </button>
             </div>
           </article>
-          <article class="presenter-card presenter-chambers presenter-author" data-reveal="pending">
+          <article id="reviewer-chambers" tabindex="-1" class="presenter-card presenter-chambers presenter-author" data-reveal="pending">
             <div class="presenter-portrait-frame">
               <img
                 src="assets/chambers-portrait-web.jpg"
@@ -176,7 +173,7 @@
               </button>
             </div>
           </article>
-          <article class="presenter-card presenter-cindy" data-reveal="pending">
+          <article id="reviewer-cindy" tabindex="-1" class="presenter-card presenter-cindy" data-reveal="pending">
             <div class="presenter-portrait-frame">
               <img
                 src="assets/cindy-portrait-web.png"
@@ -218,61 +215,6 @@
         </div>
       </section>
 
-      <section class="principles section-pad" id="principles" data-chapter="North Stars">
-        <div class="shell">
-          <div class="section-intro">
-            <p class="context-line chapter-marker" data-i18n-html="chapters.northStars"><span aria-hidden="true">✦</span> North Stars<span class="chapter-caption">先建立判断，再开始搜课</span></p>
-            <h2 data-i18n="principles.title">我们最想提前告诉你的三件事</h2>
-          </div>
-          <div class="principle-layout">
-            <article class="principle-primary">
-              <div class="principle-art-trio" aria-label="三条原则的三联插画" data-i18n-attr="aria-label:principles.artAria">
-                <div class="principle-art principle-art-choice" role="img" aria-label="学生在多条课程路径前选择自己感兴趣的方向" data-i18n-attr="aria-label:principles.choiceAria">
-                  <img src="assets/principles-triptych.jpg" alt="" loading="lazy" decoding="async" />
-                </div>
-                <div class="principle-art principle-art-japanese" role="img" aria-label="学生沿着由日语学习笔记组成的阶梯向上学习" data-i18n-attr="aria-label:principles.japaneseAria">
-                  <img src="assets/principles-triptych.jpg" alt="" loading="lazy" decoding="async" />
-                </div>
-                <div class="principle-art principle-art-outside" role="img" aria-label="三位学生在课堂之外交流并建立联系" data-i18n-attr="aria-label:principles.outsideAria">
-                  <img src="assets/principles-triptych.jpg" alt="" loading="lazy" decoding="async" />
-                </div>
-              </div>
-              <div class="principle-copy">
-                <p class="principle-title">Follow Your Heart, Uni's a Journey</p>
-                <h3 data-i18n="principles.firstTitle">第一学期，兴趣是很好的决策起点。</h3>
-                <p data-i18n="principles.firstCopy">
-                  选择真正感兴趣的内容，而不只是自己觉得“应该”学的课程。你还在适应新的城市、语言和学习方式，给自己一点余量，会让后面的投入更持续。
-                </p>
-                <button class="inline-action" type="button" data-course-jump="introduction-to-business-01">
-                  <span data-i18n="principles.firstAction">看一门“高投入但值得”的课</span>
-                </button>
-              </div>
-            </article>
-            <div class="principle-side">
-              <article>
-                <div class="principle-copy">
-                  <p class="principle-title">Master Japanese ASAP</p>
-                  <h3 data-i18n="principles.secondTitle">越早开始，复利周期越长。</h3>
-                  <p data-i18n="principles.secondCopy">日语会持续扩大你的课程、社交、实习和生活半径。重点不是冲等级，而是尽早建立稳定节奏。</p>
-                  <button class="inline-action" type="button" data-filter-preset="japanese"><span data-i18n="principles.secondAction">查看我们的日语课</span></button>
-                </div>
-              </article>
-              <article>
-                <div class="principle-copy">
-                  <p class="principle-title">The Actually Learning Happens Outside the Classroom</p>
-                  <h3 data-i18n="principles.thirdTitle">别把大学只过成一张课表。</h3>
-                  <ul class="outside-list" aria-label="课外学习入口" data-i18n-attr="aria-label:principles.outsideListAria">
-                    <li data-i18n="principles.outside.0">ICC 社交活动</li>
-                    <li data-i18n="principles.outside.1">社团</li>
-                    <li data-i18n="principles.outside.2">实习 / 打工</li>
-                  </ul>
-                </div>
-              </article>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <section class="requirements section-pad shell" id="requirements" data-chapter="Navigation Chart">
         <div class="requirements-stamp" aria-label="毕业总学分 124" data-i18n-attr="aria-label:requirements.stampAria">
           <strong>124</strong>
@@ -303,19 +245,6 @@
             rel="noreferrer"
           ><span data-i18n="requirements.link">查看 SILS 官方 Curriculum</span></a>
           <p class="fine-print" data-i18n="requirements.finePrint">此处按 SP2 摘要呈现。SP1 学生和特殊情况请以个人 Guidebook 与 SILS Office 说明为准。</p>
-        </div>
-      </section>
-
-      <section class="picks section-pad" id="picks" data-chapter="Captain’s Logs">
-        <div class="shell">
-          <div class="section-intro split-intro">
-            <div>
-              <p class="context-line chapter-marker" data-i18n-html="chapters.captains"><span aria-hidden="true">✦</span> Captain’s Logs<span class="chapter-caption">五门重点课程</span></p>
-              <h2 data-i18n="picks.title">红黑榜？不如聊聊 trade-offs</h2>
-            </div>
-          <p data-i18n="picks.copy">现场只深讲这五门。点击课程即可展开真实课程负担、考核方式和适合人群。</p>
-          </div>
-          <div class="featured-list" data-featured-list></div>
         </div>
       </section>
 
@@ -480,30 +409,6 @@
         <div class="resource-list" data-resource-list></div>
       </section>
 
-      <section class="faq section-pad shell" id="faq">
-        <div class="section-intro compact-intro">
-          <p class="context-line" data-i18n="faq.context">现场 Q&A</p>
-          <h2 data-i18n="faq.title">可能会被问到的问题</h2>
-        </div>
-        <div class="faq-list">
-          <details>
-            <summary data-i18n="faq.items.0.question">第一学期选多少学分比较合适？</summary>
-            <p data-i18n="faq.items.0.answer">先看毕业结构和 21 学分上限，再根据阅读、语言课和小组项目的组合判断。不要只看总学分，要看最忙的一周会同时发生什么。</p>
-          </details>
-          <details>
-            <summary data-i18n="faq.items.1.question">SGU 学生要不要优先学日语？</summary>
-            <p data-i18n="faq.items.1.answer">建议尽早建立稳定节奏。日语不只影响课程，还影响社交、生活和实习选择。难度不必一步到顶，持续比短期冲刺重要。</p>
-          </details>
-          <details>
-            <summary data-i18n="faq.items.2.question">怎么理解你们说的“高性价比”？</summary>
-            <p data-i18n="faq.items.2.answer">它不是单纯“容易拿分”。我们更看重投入是否换来清楚的知识、作品、表达训练或新的兴趣方向，以及这门课是否适合你。</p>
-          </details>
-          <details>
-            <summary data-i18n="faq.items.3.question">个人课程评价有多可靠？</summary>
-            <p data-i18n="faq.items.3.answer">它适合帮助你提出问题，不适合替代课程说明。老师、考核和个人基础都会改变体验，所以卡片会同时写适合谁与不适合谁。</p>
-          </details>
-        </div>
-      </section>
     </main>
 
     <footer class="site-footer">
@@ -514,7 +419,7 @@
         </div>
         <p data-i18n-html="footer.disclaimer">
           课程与评价可能随学期和教师变化。最终请以 MyWaseda、官方课程说明和 SILS 最新通知为准。<br />
-          最后更新：2026-09-16
+          页面更新：2026-10-12；课程与注册资料日期保持原样
         </p>
       </div>
     </footer>

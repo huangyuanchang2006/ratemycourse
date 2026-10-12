@@ -22,9 +22,7 @@
         chinese: "中文"
       },
       nav: {
-        principles: "三条原则",
         requirements: "毕业要求",
-        picks: "重点课程",
         courses: "全部课程",
         beforeRegister: "注册前检查",
         registration: "注册节点",
@@ -32,9 +30,7 @@
       },
       voyage: {
         home: "出发",
-        principles: "三条原则",
         requirements: "毕业要求",
-        picks: "重点课程",
         courses: "全部课程",
         beforeRegister: "注册前检查",
         registration: "注册节点",
@@ -46,7 +42,7 @@
         audienceAria: "适合人群",
         tags: ["2026 年 9 月入学", "英语授课友好", "日语仍在学习中"],
         primaryAction: "开始浏览",
-        secondaryAction: "查看全部课程",
+        secondaryAction: "认识分享者",
         actionHeading: "现在最该做什么",
         actionLink: "查看注册动作"
       },
@@ -90,29 +86,11 @@
         copyFailed: "复制失败，请手动复制微信号"
       },
       chapters: {
-        northStars: "<span aria-hidden=\"true\">✦</span> North Stars<span class=\"chapter-caption\">先建立判断，再开始搜课</span>",
         navigation: "<span aria-hidden=\"true\">✦</span> Navigation Chart<span class=\"chapter-caption\">SP2 官方要求摘要</span>",
-        captains: "<span aria-hidden=\"true\">✦</span> Captain’s Logs<span class=\"chapter-caption\">五门重点课程</span>",
         explore: "<span aria-hidden=\"true\">✦</span> Explore the Ports<span class=\"chapter-caption\">课程浏览</span>",
         predeparture: "<span aria-hidden=\"true\">✦</span> Pre-departure Check",
         route: "<span aria-hidden=\"true\">✦</span> The Route<span class=\"chapter-caption\">2026 秋季，日本时间</span>",
         toolkit: "<span aria-hidden=\"true\">✦</span> Ship’s Toolkit<span class=\"chapter-caption\">工具入口</span>"
-      },
-      principles: {
-        title: "我们最想提前告诉你的三件事",
-        artAria: "三条原则的三联插画",
-        choiceAria: "学生在多条课程路径前选择自己感兴趣的方向",
-        japaneseAria: "学生沿着由日语学习笔记组成的阶梯向上学习",
-        outsideAria: "三位学生在课堂之外交流并建立联系",
-        firstTitle: "第一学期，兴趣是很好的决策起点。",
-        firstCopy: "选择真正感兴趣的内容，而不只是自己觉得“应该”学的课程。你还在适应新的城市、语言和学习方式，给自己一点余量，会让后面的投入更持续。",
-        firstAction: "看一门“高投入但值得”的课",
-        secondTitle: "越早开始，复利周期越长。",
-        secondCopy: "日语会持续扩大你的课程、社交、实习和生活半径。重点不是冲等级，而是尽早建立稳定节奏。",
-        secondAction: "查看我们的日语课",
-        thirdTitle: "别把大学只过成一张课表。",
-        outsideListAria: "课外学习入口",
-        outside: ["ICC 社交活动", "社团", "实习 / 打工"]
       },
       requirements: {
         stampAria: "毕业总学分 124",
@@ -128,10 +106,6 @@
         link: "查看 SILS 官方 Curriculum",
         finePrint: "此处按 SP2 摘要呈现。SP1 学生和特殊情况请以个人 Guidebook 与 SILS Office 说明为准。"
       },
-      picks: {
-        title: "红黑榜？不如聊聊 trade-offs",
-        copy: "现场只深讲这五门。点击课程即可展开真实课程负担、考核方式和适合人群。"
-      },
       explorer: {
         title: "按你的需求，找一门更合适的课",
         copy: "以下保留不同分享者的修课原话。同一门课可能有多个人的评价，点击课程里的 reviewer tab 可以切换查看。评价来自特定学期，老师、考核和课堂安排可能变化，请核对当学期 Syllabus。小组标记沿用原表：N 没有、Y 有、YYY 很多；混合标记请分课程看。",
@@ -141,6 +115,7 @@
           hint: "点击名字比较不同人的体验",
           cindyHint: "Cindy 新增评价 · 点击查看",
           single: "本条评价来自",
+          meet: "认识 {name}",
           aria: "评价者切换",
           new: "新"
         },
@@ -200,20 +175,10 @@
         copy: "第三方工具适合搜索和整理，最终选课、学分和规则仍以早稻田官方系统为准。",
         open: "打开"
       },
-      faq: {
-        context: "现场 Q&A",
-        title: "可能会被问到的问题",
-        items: [
-          { question: "第一学期选多少学分比较合适？", answer: "先看毕业结构和 21 学分上限，再根据阅读、语言课和小组项目的组合判断。不要只看总学分，要看最忙的一周会同时发生什么。" },
-          { question: "SGU 学生要不要优先学日语？", answer: "建议尽早建立稳定节奏。日语不只影响课程，还影响社交、生活和实习选择。难度不必一步到顶，持续比短期冲刺重要。" },
-          { question: "怎么理解你们说的“高性价比”？", answer: "它不是单纯“容易拿分”。我们更看重投入是否换来清楚的知识、作品、表达训练或新的兴趣方向，以及这门课是否适合你。" },
-          { question: "个人课程评价有多可靠？", answer: "它适合帮助你提出问题，不适合替代课程说明。老师、考核和个人基础都会改变体验，所以卡片会同时写适合谁与不适合谁。" }
-        ]
-      },
       footer: {
         brand: "SILS 选课工作台",
         byline: "由 Chambers、Richard 与 Cindy 的个人修课经验整理。",
-        disclaimer: "课程与评价可能随学期和教师变化。最终请以 MyWaseda、官方课程说明和 SILS 最新通知为准。<br />最后更新：2026-09-16"
+        disclaimer: "课程与评价可能随学期和教师变化。最终请以 MyWaseda、官方课程说明和 SILS 最新通知为准。<br />页面更新：2026-10-12；课程与注册资料日期保持原样"
       },
       labels: {
         credits: "学分",
@@ -230,7 +195,6 @@
         workload: "课程负担",
         group: "小组",
         groupWork: "Group Work",
-        log: "LOG",
         attributionSuffix: "的修课原话",
         notProvided: "原表暂未填写",
         teacherMissing: "教师待补充",
@@ -268,9 +232,7 @@
         chinese: "中文"
       },
       nav: {
-        principles: "Three principles",
         requirements: "Requirements",
-        picks: "Featured courses",
         courses: "All courses",
         beforeRegister: "Before you register",
         registration: "Registration dates",
@@ -278,9 +240,7 @@
       },
       voyage: {
         home: "Departure",
-        principles: "North stars",
         requirements: "Navigation chart",
-        picks: "Captain's logs",
         courses: "Explore the ports",
         beforeRegister: "Pre-departure check",
         registration: "The route",
@@ -292,7 +252,7 @@
         audienceAria: "This guide is for",
         tags: ["September 2026 entrants", "English-taught courses", "Still learning Japanese"],
         primaryAction: "Start exploring",
-        secondaryAction: "Browse all courses",
+        secondaryAction: "Meet the reviewers",
         actionHeading: "What should you do next?",
         actionLink: "See the registration route"
       },
@@ -336,29 +296,11 @@
         copyFailed: "Copy failed. Please copy the WeChat ID manually."
       },
       chapters: {
-        northStars: "<span aria-hidden=\"true\">✦</span> North Stars<span class=\"chapter-caption\">Build your decision criteria before you start browsing</span>",
         navigation: "<span aria-hidden=\"true\">✦</span> Navigation Chart<span class=\"chapter-caption\">Official SP2 summary</span>",
-        captains: "<span aria-hidden=\"true\">✦</span> Captain’s Logs<span class=\"chapter-caption\">Five featured courses</span>",
         explore: "<span aria-hidden=\"true\">✦</span> Explore the Ports<span class=\"chapter-caption\">Course browser</span>",
         predeparture: "<span aria-hidden=\"true\">✦</span> Pre-departure Check",
         route: "<span aria-hidden=\"true\">✦</span> The Route<span class=\"chapter-caption\">Fall 2026 · Japan time</span>",
         toolkit: "<span aria-hidden=\"true\">✦</span> Ship’s Toolkit<span class=\"chapter-caption\">Useful links</span>"
-      },
-      principles: {
-        title: "Three things we want you to know early",
-        artAria: "A three-panel illustration of the three course-planning principles",
-        choiceAria: "A student choosing an interesting direction among several course paths",
-        japaneseAria: "A student climbing a staircase made from Japanese study notes",
-        outsideAria: "Three students connecting outside the classroom",
-        firstTitle: "In your first semester, interest is a good place to start.",
-        firstCopy: "Choose something you are genuinely curious about, not only what you think you should take. You are also adjusting to a new city, language, and way of studying. Leaving yourself some room makes it easier to keep going.",
-        firstAction: "See one high-workload class that may be worth it",
-        secondTitle: "The earlier you start, the longer the payoff.",
-        secondCopy: "Japanese keeps expanding your range of classes, social life, internships, and everyday options. The goal is not to rush through levels; it is to build a steady rhythm early.",
-        secondAction: "Browse our Japanese courses",
-        thirdTitle: "University should be more than a timetable.",
-        outsideListAria: "Ways to learn outside class",
-        outside: ["ICC events", "Student clubs", "Internships / part-time work"]
       },
       requirements: {
         stampAria: "124 credits required for graduation",
@@ -374,19 +316,16 @@
         link: "View the official SILS Curriculum",
         finePrint: "This is an SP2 summary. SP1 students and students with special circumstances should follow their own Guidebook and the SILS Office's instructions."
       },
-      picks: {
-        title: "Forget the red/black list—let's talk trade-offs.",
-        copy: "We will go deeper on these five during the session. Open a course to see its real workload, assessment style, and who it suits."
-      },
       explorer: {
         title: "Find a course that fits what you need",
-        copy: "These are first-hand reports from the two contributors. Experiences vary by semester, instructor, assessment, and class format, so check the current Syllabus. Group-work labels follow the source sheet: N = none, Y = some, YYY = a lot; mixed labels are explained per course.",
+        copy: "These are first-hand reports from Chambers, Richard, and Cindy. Click a reviewer tab to compare experiences of the same course. Experiences vary by semester, instructor, assessment, and class format, so check the current Syllabus. Group-work labels follow the source sheet: N = none, Y = some, YYY = a lot; mixed labels are explained per course.",
         reviewerLegend: "<strong>Cindy's new reviews</strong> are tucked into their matching courses. Look for the orange star tab to switch.",
         reviewer: {
           label: "Switch review",
           hint: "Click a name to compare perspectives",
           cindyHint: "Cindy's new review · click to view",
           single: "Review by",
+          meet: "Meet {name}",
           aria: "Reviewer tabs",
           new: "NEW"
         },
@@ -446,20 +385,10 @@
         copy: "Third-party tools are useful for searching and organizing. Use Waseda's official systems as the final authority for course choices, credits, and rules.",
         open: "Open"
       },
-      faq: {
-        context: "Q&A",
-        title: "Questions you may be asking",
-        items: [
-          { question: "How many credits should I take in my first semester?", answer: "Start with the graduation structure and the 21-credit limit. Then judge the combination of reading, language classes, and group projects. The total alone is not enough; look at what will happen during your busiest week." },
-          { question: "Should SGU students prioritize Japanese?", answer: "It is worth building a steady rhythm early. Japanese affects more than your course options: it can change your social life, daily routines, and internship choices. You do not need to jump to the hardest level immediately; consistency matters more than a short sprint." },
-          { question: "What do you mean when you call a class a good value?", answer: "It does not simply mean that a class is easy to get a good grade in. We care about whether the time you invest gives you clear knowledge, a useful output, practice expressing ideas, or a new direction—and whether the class fits you." },
-          { question: "How reliable are personal course reviews?", answer: "They are useful for helping you ask better questions, not for replacing the official course description. Instructors, assessments, and your own background all change the experience, which is why each card includes both Best for and Maybe skip if." }
-        ]
-      },
       footer: {
         brand: "SILS Course Odyssey",
         byline: "Built from Chambers, Richard, and Cindy's first-hand course experiences.",
-        disclaimer: "Courses and experiences may change with the semester and instructor. For final decisions, follow MyWaseda, the official course information, and the latest SILS notices.<br />Last updated: 2026-09-16"
+        disclaimer: "Courses and experiences may change with the semester and instructor. For final decisions, follow MyWaseda, the official course information, and the latest SILS notices.<br />Page updated: 2026-10-12; course and registration source dates unchanged"
       },
       labels: {
         credits: "credits",
@@ -476,7 +405,6 @@
         workload: "Workload",
         group: "Group work",
         groupWork: "Group Work",
-        log: "LOG",
         attributionSuffix: "'s first-hand report",
         notProvided: "Not filled in in the source sheet",
         teacherMissing: "Instructor not listed",
