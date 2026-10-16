@@ -50,9 +50,12 @@
     try {
       if (returnTarget) window.localStorage.setItem(returnKey, returnTarget);
     } catch (_) {}
-    // Supabase uses the already configured Site URL when redirectTo is omitted.
-    // The saved return target restores the requested page after the callback.
-    const { error } = await client.auth.signInWithOAuth({ provider: "google" });
+    // Preserve the GitHub Pages project path instead of falling back to the
+    // domain root. Supabase validates this against the configured Site URL.
+    const { error } = await client.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: siteRoot.href }
+    });
     if (error) throw error;
   }
 
