@@ -5,8 +5,9 @@
   const main = $("#main");
   const auth = window.SILS_AUTH;
   const db = auth?.client;
+  const model = window.SILS_COMMUNITY_MODEL;
   const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_profile_id";
-  const OWN_REVIEW_FIELDS = `${PUBLIC_REVIEW_FIELDS},reviewer_id,status,reviewer_background,updated_at,suggested_course_syllabus_urls`;
+  const OWN_REVIEW_FIELDS = `${PUBLIC_REVIEW_FIELDS},reviewer_id,status,reviewer_background,updated_at,suggested_course_syllabus_urls,show_name,show_avatar`;
   const COURSE_FIELDS = "id,course_code,title,provider,credits,language,syllabus_url,syllabus_urls,created_at";
   const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
   const BUCKET = "reviewer-avatars";
@@ -19,6 +20,9 @@
     }
   };
 
+  Object.assign(copy.zh, { search: "搜索课程、教师或体验关键词", invalidSyllabus: "请逐行填写完整的 http:// 或 https:// 链接，最多 10 个。", invalidCredits: "学分须在 0–999.9 之间，最多一位小数。" });
+  Object.assign(copy.en, { search: "Search courses, instructors, or experiences", invalidSyllabus: "Enter a complete http:// or https:// URL per line, up to 10 links.", invalidCredits: "Credits must be between 0 and 999.9, with at most one decimal place." });
+
   let language = localStorage.getItem("odyssey-community-language") || (navigator.language?.toLowerCase().startsWith("zh") ? "zh" : "en");
   let session = null;
   let profile = null;
@@ -29,8 +33,16 @@
   let avatarUrlCache = new Map();
   let query = "";
   let providerFilter = "";
+  let languageFilter = "";
+  let workloadFilter = "";
+  let groupFilter = "";
+  let fitFilter = "";
+  let avoidFilter = "";
+  let renderVersion = 0;
+  let authLoaded = false;
+  let loginTarget = "";
 
-  const t = (key) => copy[language][key];
+  const t = (key) => copy[language][key === "published" ? "approved" : key];
   const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
   const shortDate = (value) => value ? new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en", { year: "numeric", month: "short", day: "numeric" }).format(new Date(value)) : "";
   const safeUrl = (value) => { try { const url = new URL(value); return ["http:", "https:"].includes(url.protocol) ? url.href : ""; } catch (_) { return ""; } };
@@ -45,23 +57,26 @@
     window.clearTimeout(toast.timer); toast.timer = window.setTimeout(() => { node.hidden = true; }, 3600);
   };
   const fail = (error) => toast(`${t("serverError")}${error?.message || t("notReady")}`);
-  const login = () => $("#login").showModal();
+  const login = (target = "") => { loginTarget = target; $("#login").showModal(); };
   const link = (href, label, klass = "text-link") => `<a class="${klass}" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
   const button = (action, label, klass = "button") => `<button class="${klass}" type="button" data-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`;
 
   async function signedAvatar(path) {
     if (!path || !db) return "";
-    if (avatarUrlCache.has(path)) return avatarUrlCache.get(path);
+    const cached = avatarUrlCache.get(path);
+    if (cached && cached.expiresAt > Date.now()) return cached.url;
     const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 1800);
     const url = error ? "" : data?.signedUrl || "";
-    avatarUrlCache.set(path, url);
+    if (url) avatarUrlCache.set(path, { url, expiresAt: Date.now() + 25 * 60 * 1000 });
     return url;
   }
 
   async function getProfile() {
     if (!session?.user) { profile = null; return null; }
-    const { data, error } = await db.from("reviewer_profiles").select("*").eq("id", session.user.id).maybeSingle();
+    const userId = session.user.id;
+    const { data, error } = await db.from("reviewer_profiles").select("*").eq("id", userId).maybeSingle();
     if (error) throw error;
+    if (session?.user.id !== userId) return null;
     profile = data || null;
     return profile;
   }
@@ -70,13 +85,22 @@
     const { data, error } = await db.from("courses").select(COURSE_FIELDS).order("title");
     if (error) throw error;
     courses = data || [];
-    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id").eq("status", "published").not("course_id", "is", null);
+    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,public_display_name").eq("status", "published").not("course_id", "is", null);
     if (reviewError) throw reviewError;
     publishedReviews = reviewData || [];
   }
 
   function renderHeader() {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
+    $(".brand").setAttribute("aria-label", language === "zh" ? "Odyssey 首页" : "Odyssey home");
+    $("nav").setAttribute("aria-label", language === "zh" ? "Odyssey 导航" : "Odyssey navigation");
+    $(".skip").textContent = language === "zh" ? "跳到主要内容" : "Skip to main content";
+    $("#auth-notice").textContent = language === "zh" ? "Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。" : "Google sign-in establishes account ownership; it does not verify student status or course attendance.";
+    $("#login-title").textContent = language === "zh" ? "分享你的课程体验" : "Share your course experience";
+    $("#login-description").textContent = language === "zh" ? "浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。" : "Browse without signing in. Sign in to contribute, check moderation status, and edit your own submissions.";
+    $("#login-privacy").textContent = language === "zh" ? "登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。" : "Your login email is not shown on reviews or profile cards. Sign-in does not read Gmail or verify student status.";
+    $("[data-close-login]").setAttribute("aria-label", language === "zh" ? "关闭" : "Close");
+    $("#login [data-community-signin]").textContent = t("signIn");
     $("#language-toggle").textContent = language === "zh" ? "English" : "中文";
     const labels = { browse: t("browse"), mine: t("mine"), profile: t("profile") };
     document.querySelectorAll("[data-nav]").forEach((anchor) => {
@@ -93,41 +117,59 @@
     main.innerHTML = `<div class="empty-state"><span class="empty-icon">…</span><h2>${escapeHtml(t("loading"))}</h2></div>`;
   }
 
-  function courseCard(course) {
-    const count = publishedReviews.filter((review) => review.course_id === course.id).length;
-    const syllabi = [...new Set([...(course.syllabus_urls || []), course.syllabus_url].filter(Boolean))];
-    const syllabii = syllabi.map((url) => safeUrl(url)).filter(Boolean);
+  function courseCard(entry) {
+    const { course, reviews, totalReviews, hasReviewFilters } = entry;
+    const review = reviews[0];
+    const syllabi = [...new Set([...(course.syllabus_urls || []), course.syllabus_url].filter(Boolean))].map(safeUrl).filter(Boolean);
     return `<article class="course-card">
       <div class="chips"><span class="pill">${escapeHtml(course.provider || "Odyssey")}</span>${course.language ? `<span class="pill">${escapeHtml(course.language)}</span>` : ""}</div>
       <h3><a href="community.html#/course/${encodeURIComponent(course.id)}">${escapeHtml(course.title)}</a></h3>
-      <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${language === "zh" ? "学分" : "credits"} · ${count}${escapeHtml(t("reviews"))}</p>
-      <div class="card-bottom"><a class="text-link" href="community.html#/course/${encodeURIComponent(course.id)}">${language === "zh" ? "查看课程与评价" : "View course and reviews"}</a>${syllabii[0] ? `<a class="text-link" href="${escapeHtml(syllabii[0])}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))} ↗</a>` : ""}</div>
+      <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${language === "zh" ? "学分" : "credits"} · ${totalReviews}${escapeHtml(t("reviews"))}</p>
+      ${review ? `<p class="perspective-note small">${language === "zh" ? "一位作者的视角" : "ONE CONTRIBUTOR’S PERSPECTIVE"} · ${escapeHtml(review.public_display_name || t("anonymous"))} · ${escapeHtml(model.termLabel(review.term, language))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</p>
+      <p class="snippet">${escapeHtml(review.experience.slice(0, 220))}${review.experience.length > 220 ? "…" : ""}</p>
+      <dl class="audience-notes">${[["fit", review.fit], ["avoid", review.avoid], ["assessment", review.assessment]].filter(([, value]) => value).map(([key, value]) => `<div><dt>${escapeHtml(t(key))}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
+      <div class="card-measures"><div><p class="measure-label">${escapeHtml(t("workload"))}</p><span class="workload-score"><strong>${review.workload}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[review.workload - 1])}</small></span><p class="small">1 = ${escapeHtml(t("workloadNames")[0])} · 5 = ${escapeHtml(t("workloadNames")[4])}</p></div><div><p class="measure-label">${escapeHtml(t("group"))}</p><p>${escapeHtml(t("groupChoices")[model.groups.indexOf(review.group_work)])}</p></div></div>` : ""}
+      ${hasReviewFilters ? `<p class="small">${reviews.length} ${language === "zh" ? "条体验同时符合全部体验筛选条件" : "experience(s) match all review filters"}</p>` : ""}
+      <div class="card-bottom"><a class="text-link" href="community.html#/course/${encodeURIComponent(course.id)}">${language === "zh" ? "查看课程与评价" : "View course and reviews"}</a>${syllabi[0] ? `<a class="text-link" href="${escapeHtml(syllabi[0])}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))} ↗</a>` : ""}</div>
     </article>`;
   }
 
   function renderBrowse() {
-    const providerOptions = [...new Set(courses.map((course) => course.provider).filter(Boolean))].sort();
-    const filtered = courses.filter((course) => {
-      const text = `${course.title} ${course.course_code || ""} ${course.provider || ""}`.toLowerCase();
-      return text.includes(query.toLowerCase()) && (!providerFilter || course.provider === providerFilter);
-    });
+    const filtered = model.filterCatalog(courses, publishedReviews, { query, provider: providerFilter, language: languageFilter, workload: workloadFilter, group: groupFilter, fit: fitFilter, avoid: avoidFilter });
+    const option = (value, label, selected) => `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
     main.innerHTML = `<section class="hero">
       <div><p class="eyebrow">ODYSSEY · COURSE EXPERIENCES</p><h1>${language === "zh" ? "找到适合你的课程。" : "Find the courses that fit you."}</h1>
       <p class="subtext">${language === "zh" ? "先看官方课程资料，再比较不同修课者的独立体验。Google 登录只用于提交和管理投稿。" : "Start with official course information, then compare individual student experiences. Google sign-in is only for contributions and account ownership."}</p>
       <div class="search"><input id="course-search" type="search" value="${escapeHtml(query)}" placeholder="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}"><button class="button" type="button" data-action="search">${language === "zh" ? "搜索" : "Search"}</button></div>
       </div><aside class="hero-example"><span class="pill green">${language === "zh" ? "公开目录" : "PUBLIC CATALOG"}</span><h2>${courses.length} ${language === "zh" ? "门课程" : "courses"}</h2><p>${language === "zh" ? "新课程与第一条体验一起提交审核。审核通过后，新课程会进入目录。" : "New courses are reviewed together with their first experience. Approved courses join the catalog."}</p>${button("share", t("add"), "button")}</aside>
     </section>
-    <div class="page-heading"><div><p class="eyebrow">${language === "zh" ? "BROWSE" : "BROWSE"}</p><h1>${escapeHtml(t("browse"))}</h1></div><a class="button" href="community.html#/share">${escapeHtml(t("add"))}</a></div>
-    <div class="browse"><aside class="filters"><h2>${language === "zh" ? "筛选课程" : "Filter courses"}</h2><div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select id="provider-filter"><option value="">${escapeHtml(t("all"))}</option>${providerOptions.map((item) => `<option value="${escapeHtml(item)}" ${providerFilter === item ? "selected" : ""}>${escapeHtml(item)}</option>`).join("")}</select></div></aside>
-      <section><p class="results-meta"><span>${filtered.length} / ${courses.length}</span><span>${language === "zh" ? "课程事实来自目录；评价单独审核。" : "Catalog facts and student reviews are moderated separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2></div>`}</div></section>
-    </div>`;
+    <div class="page-heading"><div><p class="eyebrow">BROWSE</p><h1>${escapeHtml(t("browse"))}</h1></div><a class="button" href="community.html#/share">${escapeHtml(t("add"))}</a></div>
+    <div class="browse"><form class="filters" id="browse-filters"><h2>${language === "zh" ? "筛选课程" : "Filter courses"}</h2>
+      <div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select id="provider-filter" name="provider"><option value="">${escapeHtml(t("all"))}</option>${model.providers.map((item) => option(item, item, providerFilter)).join("")}</select></div>
+      <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select id="language-filter" name="language">${option("", language === "zh" ? "全部语言" : "All languages", languageFilter)}${[...new Set(courses.map((course) => course.language).filter(Boolean))].sort().map((item) => option(item, item, languageFilter)).join("")}</select></div>
+      <div class="filter"><label for="workload-filter">${escapeHtml(t("workload"))} · 1–5</label><select id="workload-filter" name="workload">${option("", language === "zh" ? "全部负担" : "Any workload", workloadFilter)}${option("light", `1–2 · ${language === "zh" ? "较轻" : "Lighter"}`, workloadFilter)}${option("3", `3 · ${t("workloadNames")[2]}`, workloadFilter)}${option("heavy", `4–5 · ${language === "zh" ? "较重" : "Heavier"}`, workloadFilter)}</select><p class="hint">1 = ${t("workloadNames")[0]} · 5 = ${t("workloadNames")[4]}</p></div>
+      <div class="filter"><label for="group-filter">${escapeHtml(t("group"))}</label><select id="group-filter" name="group">${option("", language === "zh" ? "全部合作方式" : "Any group work", groupFilter)}${model.groups.map((key, index) => option(key, t("groupChoices")[index], groupFilter)).join("")}</select></div>
+      <div class="audience-filter"><h3>${language === "zh" ? "按体验原文筛选" : "Search the contributor’s words"}</h3><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${language === "zh" ? "负担、合作和适合／不适合条件需同时命中同一条体验。“不适合谁”搜索对应原文。" : "Workload, group work, fit and avoid must match the same experience. “May not fit” searches that field’s wording."}</p><button class="button secondary" type="submit">${language === "zh" ? "应用筛选" : "Apply filters"}</button>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "quiet")}</div>
+    </form><section><p class="results-meta"><span>${filtered.length} / ${courses.length}</span><span>${language === "zh" ? "课程资料与每位作者的体验分别保留。" : "Course facts and each contributor’s experience are kept distinct."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
+  }
+
+  function readBrowseFilters() {
+    const form = $("#browse-filters");
+    if (!form) return;
+    const values = new FormData(form);
+    providerFilter = String(values.get("provider") || "");
+    languageFilter = String(values.get("language") || "");
+    workloadFilter = String(values.get("workload") || "");
+    groupFilter = String(values.get("group") || "");
+    fitFilter = String(values.get("fit") || "").trim();
+    avoidFilter = String(values.get("avoid") || "").trim();
   }
 
   function identity(review, avatar) {
     const name = review.public_display_name || t("anonymous");
     const avatarMarkup = avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
     const profileLink = review.public_profile_id ? `<a class="text-link" href="community.html#/people/${encodeURIComponent(review.public_profile_id)}">${escapeHtml(t("openProfile"))} ↗</a>` : "";
-    return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(review.term || "")}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</small></div>${profileLink}</div>`;
+    return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(model.termLabel(review.term, language))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</small></div>${profileLink}</div>`;
   }
 
   async function reviewCard(review) {
@@ -146,35 +188,39 @@
     </article>`;
   }
 
-  async function renderCourse(id) {
+  async function renderCourse(id, version) {
     const course = courses.find((item) => item.id === id) || (await db.from("courses").select(COURSE_FIELDS).eq("id", id).maybeSingle()).data;
+    if (version !== renderVersion) return;
     if (!course) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${link("community.html#/browse", t("backToBrowse"), "button")}</div>`; return; }
     const { data, error } = await db.from("reviews").select(PUBLIC_REVIEW_FIELDS).eq("course_id", id).eq("status", "published").order("created_at", { ascending: false });
     if (error) throw error;
     const syllabi = [...new Set([...(course.syllabus_urls || []), course.syllabus_url].filter(Boolean))].map(safeUrl).filter(Boolean);
     const reviews = data || [];
+    const cards = await Promise.all(reviews.map(reviewCard));
+    if (version !== renderVersion) return;
     const proposalButton = `<a class="button" href="community.html#/share?course=${encodeURIComponent(id)}">${language === "zh" ? "分享这门课的体验" : "Share your experience"}</a>`;
     main.innerHTML = `<div class="crumb"><a href="community.html#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(course.provider || "")}</span></div>
       <p class="eyebrow">${escapeHtml(course.provider || "ODYSSEY")}</p><h1 class="detail-title">${escapeHtml(course.title)}</h1>
       <dl class="course-facts"><div><dt>${escapeHtml(t("courseCode"))}</dt><dd>${escapeHtml(course.course_code || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div><div><dt>${escapeHtml(t("language"))}</dt><dd>${escapeHtml(course.language || "—")}</dd></div></dl>
       <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${language === "zh" ? "暂无官方链接" : "No official syllabus link listed"}</span>`}${proposalButton}</div>
       <div class="section-heading"><h2>${language === "zh" ? "修课体验" : "Student experiences"} <span class="pill">${reviews.length}</span></h2></div>
-      <div class="detail-layout"><section class="review-stack">${reviews.length ? (await Promise.all(reviews.map(reviewCard))).join("") : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`}</section><aside><div class="side-card green"><h3>${language === "zh" ? "分享你的视角" : "Add your perspective"}</h3><p>${language === "zh" ? "每条评价保留作者自己的课程负担和适合度，不做平均分排名。" : "Each contribution keeps the author’s own workload and fit notes; experiences are not averaged into a rating."}</p>${proposalButton}</div></aside></div>`;
+      <div class="detail-layout"><section class="review-stack">${reviews.length ? cards.join("") : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`}</section><aside><div class="side-card green"><h3>${language === "zh" ? "分享你的视角" : "Add your perspective"}</h3><p>${language === "zh" ? "每条评价保留作者自己的课程负担和适合度，不做平均分排名。" : "Each contribution keeps the author’s own workload and fit notes; experiences are not averaged into a rating."}</p>${proposalButton}</div></aside></div>`;
   }
 
   function gated(title, description) {
     main.innerHTML = `<section class="gated"><b class="brand-mark login-mark">o.</b><p class="eyebrow">GOOGLE SIGN-IN</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><button class="button" type="button" data-open-login>${escapeHtml(t("signIn"))}</button></section>`;
   }
 
-  async function renderMine() {
+  async function renderMine(version) {
     if (!session) { gated(t("mine"), t("loginRequired")); return; }
     const { data, error } = await db.from("reviews").select(OWN_REVIEW_FIELDS).eq("reviewer_id", session.user.id).order("updated_at", { ascending: false });
     if (error) throw error;
+    if (version !== renderVersion) return;
     const items = data || [];
     main.innerHTML = `<div class="page-heading"><div><p class="eyebrow">YOUR CONTRIBUTIONS</p><h1>${escapeHtml(t("mine"))}</h1><p class="subtext">${language === "zh" ? "投稿只有审核通过后才对其他访客公开。编辑会重新进入审核。" : "Contributions become public only after approval. Editing sends them back for review."}</p></div><a class="button" href="community.html#/share">${escapeHtml(t("share"))}</a></div>
       ${items.length ? items.map((item) => {
         const title = item.course_id ? courses.find((course) => course.id === item.course_id)?.title || (language === "zh" ? "课程" : "Course") : item.suggested_course_title || (language === "zh" ? "新课程建议" : "Proposed course");
-        return `<article class="submission"><div><span class="pill ${item.status === "published" ? "green" : item.status === "pending" ? "amber" : ""}">${escapeHtml(t(item.status) || item.status)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(item.term || "")} · ${escapeHtml(String(item.experience || "").slice(0, 200))}</p></div><div class="submission-actions">${button(`edit-review:${item.id}`, t("edit"), "button secondary compact")}${item.course_id ? link(`community.html#/course/${encodeURIComponent(item.course_id)}`, language === "zh" ? "课程页" : "Course page") : ""}</div></article>`;
+        return `<article class="submission"><div><span class="pill ${item.status === "published" ? "green" : item.status === "pending" ? "amber" : ""}">${escapeHtml(t(item.status) || item.status)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(model.termLabel(item.term, language))} · ${escapeHtml(String(item.experience || "").slice(0, 200))}</p></div><div class="submission-actions">${button(`edit-review:${item.id}`, t("edit"), "button secondary compact")}${item.course_id ? link(`community.html#/course/${encodeURIComponent(item.course_id)}`, language === "zh" ? "课程页" : "Course page") : ""}</div></article>`;
       }).join("") : `<div class="empty-state"><h2>${escapeHtml(t("noMine"))}</h2><a class="button" href="community.html#/share">${escapeHtml(t("share"))}</a></div>`}`;
   }
 
@@ -186,51 +232,59 @@
         <div class="field"><label for="profile-bio">${escapeHtml(t("bio"))}</label><textarea id="profile-bio" name="bio" maxlength="500">${escapeHtml(profile?.bio || "")}</textarea></div>
         <div class="field"><span class="heading">${escapeHtml(t("avatar"))}</span><div class="avatar-row"><span class="avatar profile-avatar">${localPhotoUrl ? `<img src="${escapeHtml(localPhotoUrl)}" alt="">` : profile?.avatar_path ? "…" : "?"}</span><div class="file-actions"><label for="profile-photo">${escapeHtml(t("choosePhoto"))}</label><input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp"><button class="button secondary compact" type="button" data-action="photo-remove">${escapeHtml(t("removePhoto"))}</button></div></div><p class="hint">${escapeHtml(t("uploadHint"))}</p><p class="hint" id="photo-hint" role="status">${selectedPhoto ? escapeHtml(t("newPhoto")) : escapeHtml(t("noPhoto"))}</p><p id="photo-error" class="error" hidden></p></div>
         <label class="check"><input type="checkbox" name="is_public" ${profile?.is_public ? "checked" : ""}><span><strong>${escapeHtml(t("publicProfile"))}</strong><small>${escapeHtml(t("saveHint"))}</small></span></label>
-        <div class="form-actions"><a class="text-link" href="community.html#/browse">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
+        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="community.html#/browse">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
       </form></section><aside><div class="side-card"><h3>${escapeHtml(t("profile"))}</h3><p>${escapeHtml(t("saveHint"))}</p>${profile?.is_public ? `<span class="pill green">${language === "zh" ? "当前公开" : "Public"}</span><p style="margin-top:16px">${link(`community.html#/people/${encodeURIComponent(profile.id)}`, t("openProfile"))}</p>` : `<span class="pill">${language === "zh" ? "当前私密" : "Private"}</span>`}</div></aside></div>`;
   }
 
-  async function renderProfile() {
+  async function renderProfile(version) {
     if (!session) { gated(t("profile"), t("loginRequired")); return; }
     await getProfile();
+    if (version !== renderVersion) return;
     main.innerHTML = profileFormMarkup();
-    if (profile?.avatar_path) {
+    if (profile?.avatar_path && !localPhotoUrl) {
       const url = await signedAvatar(profile.avatar_path);
-      if (url) $(".profile-avatar").innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
+      if (version !== renderVersion) return;
+      if (url && $(".profile-avatar")) $(".profile-avatar").innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
     }
   }
 
-  async function renderPerson(id) {
+  async function renderPerson(id, version) {
     const { data, error } = await db.from("reviewer_profiles").select("id,display_name,programme,study_year,prior_knowledge,selection_goal,bio,is_public,avatar_path").eq("id", id).maybeSingle();
     if (error) throw error;
+    if (version !== renderVersion) return;
     if (!data?.is_public) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("profilePrivate"))}</h2>${link("community.html#/browse", t("backToBrowse"), "button")}</div>`; return; }
     const avatar = await signedAvatar(data.avatar_path);
+    if (version !== renderVersion) return;
     const fields = [[t("programme"), data.programme], [t("studyYear"), data.study_year], [t("priorKnowledge"), data.prior_knowledge], [t("selectionGoal"), data.selection_goal]].filter(([, value]) => value);
     main.innerHTML = `<div class="crumb"><a href="community.html#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(t("profile"))}</span></div><section class="public-person"><span class="person-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml((data.display_name || "?").slice(0, 1).toUpperCase())}</span><p class="eyebrow">${language === "zh" ? "公开名片 · 作者自述" : "PUBLIC PROFILE · AUTHOR-REPORTED"}</p><h1>${escapeHtml(data.display_name || t("anonymous"))}</h1>${data.bio ? `<p class="subtext">${escapeHtml(data.bio)}</p>` : ""}<dl class="context-grid">${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl><p class="small">${escapeHtml(t("contextAuthor"))}</p></section>`;
   }
 
-  const formField = (label, name, options = {}) => `<div class="field"><label for="${escapeHtml(name)}">${escapeHtml(label)}${options.optional ? ` <span class="optional">${language === "zh" ? "可选" : "optional"}</span>` : ""}</label>${options.textarea ? `<textarea id="${escapeHtml(name)}" name="${escapeHtml(name)}" ${options.required ? "required" : ""} maxlength="${options.max || 3000}">${escapeHtml(options.value || "")}</textarea>` : `<input id="${escapeHtml(name)}" name="${escapeHtml(name)}" type="${escapeHtml(options.type || "text")}" ${options.required ? "required" : ""} maxlength="${options.max || 200}" value="${escapeHtml(options.value || "")}" placeholder="${escapeHtml(options.placeholder || "")}">`}</div>`;
+  const formField = (label, name, options = {}) => `<div class="field"><label for="${escapeHtml(name)}">${escapeHtml(label)}${options.optional ? ` <span class="optional">${language === "zh" ? "可选" : "optional"}</span>` : ""}</label>${options.textarea ? `<textarea id="${escapeHtml(name)}" name="${escapeHtml(name)}" ${options.required ? "required" : ""} maxlength="${options.max || 3000}">${escapeHtml(options.value ?? "")}</textarea>` : `<input id="${escapeHtml(name)}" name="${escapeHtml(name)}" type="${escapeHtml(options.type || "text")}" ${options.type === "number" ? 'min="0" max="999.9" step="0.1"' : ""} ${options.required ? "required" : ""} maxlength="${options.max || 200}" value="${escapeHtml(options.value ?? "")}" placeholder="${escapeHtml(options.placeholder || "")}">`}</div>`;
 
-  async function renderShare(editId = "") {
+  async function renderShare(editId = "", version) {
     if (!session) { gated(t("share"), t("loginRequired")); return; }
     await getProfile();
     const editing = editId ? await db.from("reviews").select(OWN_REVIEW_FIELDS).eq("id", editId).eq("reviewer_id", session.user.id).maybeSingle() : { data: null, error: null };
     if (editing.error) throw editing.error;
+    if (version !== renderVersion) return;
     if (editId && !editing.data) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2></div>`; return; }
     const current = editing.data;
     const selectedCourse = current?.course_id || route().params.get("course") || "";
-    const terms = language === "zh" ? ["2026 年春季", "2026 年秋季", "2025 年秋季", "其他学期"] : ["Spring 2026", "Fall 2026", "Fall 2025", "Other term"];
+    const storedTerm = model.normalizeTerm(current?.term);
+    const otherTerm = storedTerm && !model.terms.some((term) => term.value === storedTerm) ? storedTerm : "";
+    const selectedTerm = otherTerm ? "other" : storedTerm;
     main.innerHTML = `<div class="page-heading"><div><p class="eyebrow">CONTRIBUTE</p><h1>${escapeHtml(current ? t("edit") : t("share"))}</h1><p class="subtext">${language === "zh" ? "内容先进入待审核。课程信息与第一条体验会一起审核。" : "Your contribution enters review first. New course details and the first experience are reviewed together."}</p></div></div>
       <form id="review-form" class="form-shell" data-edit-id="${escapeHtml(editId)}">
         <section class="panel"><h2>${escapeHtml(t("existingCourse"))}</h2><label class="radio"><input type="radio" name="course_mode" value="existing" ${current?.course_id || !current?.suggested_course_title ? "checked" : ""}><span><strong>${escapeHtml(t("existingCourse"))}</strong><small>${language === "zh" ? "选择已收录的课程" : "Choose a listed course"}</small></span></label><div class="field"><label for="course-id">${escapeHtml(t("selectCourse"))}</label><select id="course-id" name="course_id">${courses.map((course) => `<option value="${escapeHtml(course.id)}" ${selectedCourse === course.id ? "selected" : ""}>${escapeHtml(course.title)} · ${escapeHtml(course.provider || "")}</option>`).join("")}</select></div>
           <label class="radio"><input type="radio" name="course_mode" value="new" ${current?.suggested_course_title ? "checked" : ""}><span><strong>${escapeHtml(t("newCourse"))}</strong><small>${language === "zh" ? "课程和体验会共同待审；审核通过后加入目录。" : "The course and experience are reviewed together and then added to the catalog."}</small></span></label>
           <div id="new-course-fields" class="field-grid" ${current?.suggested_course_title ? "" : "hidden"}>${formField(t("courseTitle"), "suggested_course_title", { value: current?.suggested_course_title, required: true })}<div class="field"><label for="suggested-course-provider">${escapeHtml(t("provider"))}</label><select name="suggested_course_provider" id="suggested-course-provider" required><option value="">—</option>${["SILS", "PSE", "JCulP", "CJL"].map((p) => `<option ${current?.suggested_course_provider === p ? "selected" : ""}>${p}</option>`).join("")}</select></div>${formField(t("courseCode"), "suggested_course_code", { value: current?.suggested_course_code, optional: true })}${formField(t("credits"), "suggested_course_credits", { value: current?.suggested_course_credits, type: "number", optional: true })}<div class="field"><label for="suggested-course-language">${escapeHtml(t("language"))}</label><select id="suggested-course-language" name="suggested_course_language"><option value="">—</option>${["English", "Japanese", "Chinese", "Other"].map((p) => `<option ${current?.suggested_course_language === p ? "selected" : ""}>${p}</option>`).join("")}</select></div>${formField(t("syllabusUrls"), "suggested_course_syllabus_urls", { value: (current?.suggested_course_syllabus_urls || []).join("\n") || current?.suggested_course_syllabus_url || "", textarea: true, optional: true, max: 1000 })}<p class="hint">${language === "zh" ? "粘贴官方课程链接；有多个链接时每行一个。" : "Paste official course links, one URL per line."}</p></div>
         </section>
-        <section class="panel"><h2>${language === "zh" ? "修课体验" : "Your experience"}</h2><div class="field-grid"><div class="field"><label for="term">${escapeHtml(t("term"))}</label><select id="term" name="term" required><option value="">—</option>${terms.map((term) => `<option ${current?.term === term ? "selected" : ""}>${escapeHtml(term)}</option>`).join("")}</select></div>${formField(t("teacher"), "teacher", { value: current?.teacher, optional: true })}</div>
+        <section class="panel"><h2>${language === "zh" ? "修课体验" : "Your experience"}</h2><div class="field-grid"><div class="field"><label for="term">${escapeHtml(t("term"))}</label><select id="term" name="term" required><option value="">—</option>${model.terms.map((term) => `<option value="${term.value}" ${selectedTerm === term.value ? "selected" : ""}>${escapeHtml(term[language])}</option>`).join("")}<option value="other" ${selectedTerm === "other" ? "selected" : ""}>${language === "zh" ? "其他学期" : "Other term"}</option></select></div><div class="field" id="other-term-field" hidden><label for="term-other">${language === "zh" ? "填写修读学期" : "Specify the term"}</label><input id="term-other" name="term_other" maxlength="100" value="${escapeHtml(otherTerm)}" placeholder="${language === "zh" ? "例如：2024 年秋季" : "e.g. Fall 2024"}"></div>${formField(t("teacher"), "teacher", { value: current?.teacher, optional: true })}</div>
           <fieldset class="workload-picker"><legend>${escapeHtml(t("workload"))} · 1–5</legend><p class="hint">${language === "zh" ? "表示时间与精力投入，不代表课程质量。" : "Time and effort required, not course quality."}</p><div class="score-options">${[1,2,3,4,5].map((score) => `<label><input type="radio" name="workload" value="${score}" ${Number(current?.workload) === score ? "checked" : ""} required><span><b>${score}</b><small>${escapeHtml(t("workloadNames")[score - 1])}</small></span></label>`).join("")}</div></fieldset>
-          <fieldset class="workload-picker"><legend>${escapeHtml(t("group"))}</legend><div class="field"><select name="group_work" required><option value="">—</option>${["none", "some", "heavy", "mixed"].map((key, i) => `<option value="${key}" ${current?.group_work === key ? "selected" : ""}>${escapeHtml(t("groupChoices")[i])}</option>`).join("")}</select></div></fieldset>
+          <fieldset class="workload-picker"><legend>${escapeHtml(t("group"))}</legend><div class="field"><label for="review-group-work">${escapeHtml(t("group"))}</label><select id="review-group-work" name="group_work" required><option value="">—</option>${["none", "some", "heavy", "mixed"].map((key, i) => `<option value="${key}" ${current?.group_work === key ? "selected" : ""}>${escapeHtml(t("groupChoices")[i])}</option>`).join("")}</select></div></fieldset>
           ${formField(t("assessment"), "assessment", { value: current?.assessment, textarea: true, optional: true })}${formField(t("fit"), "fit", { value: current?.fit, textarea: true, optional: true })}${formField(t("avoid"), "avoid", { value: current?.avoid, textarea: true, optional: true })}${formField(t("experience"), "experience", { value: current?.experience, textarea: true, required: true, max: 5000 })}${formField(t("notes"), "notes", { value: current?.notes, textarea: true, optional: true, max: 2000 })}
         </section>
+        <section class="panel"><h2>${language === "zh" ? "这次修课的背景（可选）" : "Background for this experience (optional)"}</h2><p class="hint">${language === "zh" ? "可从个人资料带入初始值，再按这门课的实际情况修改。只有勾选下方公开选项才会随体验保存。" : "Profile details are starting values. Adjust them for this course. These fields are saved with the experience only if you choose to share them below."}</p><div class="field-grid">${formField(t("programme"), "reviewer_programme", { value: current ? current.reviewer_programme : profile?.programme, optional: true, max: 100 })}${formField(t("studyYear"), "reviewer_year", { value: current ? current.reviewer_year : profile?.study_year, optional: true, max: 60 })}${formField(t("priorKnowledge"), "reviewer_prior_knowledge", { value: current ? current.reviewer_prior_knowledge : profile?.prior_knowledge, optional: true, textarea: true, max: 500 })}${formField(t("selectionGoal"), "reviewer_selection_goal", { value: current ? current.reviewer_selection_goal : profile?.selection_goal, optional: true, textarea: true, max: 500 })}</div></section>
         <section class="panel"><h2>${language === "zh" ? "公开选项" : "Publication choices"}</h2><p class="subtext">${language === "zh" ? "默认匿名。每个选项分别控制；关闭背景后，背景内容不会随评价公开。" : "Anonymous by default. Each option is separate. Background details stay private unless you opt in."}</p>
           <label class="check"><input type="checkbox" name="show_name" ${current?.show_name ? "checked" : ""} ${profile?.display_name ? "" : "disabled"}><span><strong>${escapeHtml(t("showName"))}</strong><small>${profile?.display_name ? escapeHtml(profile.display_name) : escapeHtml(t("ownProfile"))}</small></span></label>
           <label class="check"><input type="checkbox" name="show_avatar" ${current?.show_avatar ? "checked" : ""} ${profile?.avatar_path ? "" : "disabled"}><span><strong>${escapeHtml(t("showAvatar"))}</strong><small>${profile?.avatar_path ? escapeHtml(t("avatar")) : escapeHtml(t("profilePhoto"))}</small></span></label>
@@ -238,49 +292,65 @@
           <label class="check"><input type="checkbox" name="share_background" ${current?.share_background ? "checked" : ""}><span><strong>${escapeHtml(t("shareBackground"))}</strong><small>${escapeHtml(t("contextAuthor"))}</small></span></label>
           ${current?.status ? `<p class="notice">${escapeHtml(t("status"))}: ${escapeHtml(t(current.status) || current.status)}${current.status === "published" && current.updated_at ? ` · ${escapeHtml(shortDate(current.updated_at))}` : ""}</p>` : ""}
         </section>
-        <div class="form-actions"><a class="text-link" href="community.html#/mine">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(current ? t("saveReview") : t("submit"))}</button></div>
+        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="community.html#/mine">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(current ? t("saveReview") : t("submit"))}</button></div>
       </form>`;
     toggleNewCourseFields();
+    toggleTermField();
   }
 
   function toggleNewCourseFields() {
     const form = $("#review-form"); if (!form) return;
     const isNew = $("input[name=course_mode]:checked", form)?.value === "new";
     $("#new-course-fields", form).hidden = !isNew;
+    $("#new-course-fields", form).querySelectorAll("input,select,textarea").forEach((input) => { input.disabled = !isNew; });
     $("#course-id", form).disabled = isNew;
     $("#course-id", form).required = !isNew;
     $("input[name=suggested_course_title]", form).required = isNew;
     $("select[name=suggested_course_provider]", form).required = isNew;
   }
 
+  function toggleTermField() {
+    const field = $("#other-term-field");
+    if (!field) return;
+    const isOther = $("#term").value === "other";
+    field.hidden = !isOther;
+    $("#term-other").disabled = !isOther;
+    $("#term-other").required = isOther;
+  }
+
   async function render() {
+    const version = ++renderVersion;
     renderHeader();
     if (!db) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2></div>`; return; }
     loadingPage();
     try {
       await loadCourses();
+      if (version !== renderVersion) return;
       const current = route();
-      if (current.path === "course") await renderCourse(decodeURIComponent(current.id));
-      else if (current.path === "share") await renderShare(current.params.get("edit") || "");
-      else if (current.path === "mine") await renderMine();
-      else if (current.path === "profile") await renderProfile();
-      else if (current.path === "people") await renderPerson(decodeURIComponent(current.id));
+      if (current.path === "course") await renderCourse(decodeURIComponent(current.id), version);
+      else if (current.path === "share") await renderShare(current.params.get("edit") || "", version);
+      else if (current.path === "mine") await renderMine(version);
+      else if (current.path === "profile") await renderProfile(version);
+      else if (current.path === "people") await renderPerson(decodeURIComponent(current.id), version);
       else renderBrowse();
+      if (version !== renderVersion) return;
       renderHeader();
     } catch (error) {
+      if (version !== renderVersion) return;
       console.error("Odyssey community page failed", error);
       main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2><p>${escapeHtml(error?.message || "")}</p><button class="button" type="button" data-action="retry">${language === "zh" ? "重试" : "Try again"}</button></div>`;
     }
   }
 
-  async function handleProfileSubmit(form) {
-    const values = new FormData(form);
+  async function handleProfileSubmit(form, values = new FormData(form)) {
+    const userId = session?.user.id;
+    if (!userId) throw Object.assign(new Error(t("loginRequired")), { code: "loginRequired" });
     let avatarPath = profile?.avatar_path || null;
     let uploadedPath = "";
     if (selectedPhoto) {
       const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" })[selectedPhoto.type];
       if (!extension || selectedPhoto.size > MAX_PHOTO_SIZE) throw new Error(t("photoError"));
-      uploadedPath = `${session.user.id}/${crypto.randomUUID()}.${extension}`;
+      uploadedPath = `${userId}/${crypto.randomUUID()}.${extension}`;
       const { error } = await db.storage.from(BUCKET).upload(uploadedPath, selectedPhoto, { contentType: selectedPhoto.type, upsert: false, cacheControl: "3600" });
       if (error) throw error;
       avatarPath = uploadedPath;
@@ -295,15 +365,16 @@
       is_public: values.has("is_public"),
       avatar_path: avatarPath
     };
+    if (session?.user.id !== userId) throw new Error(t("loginRequired"));
     const result = profile
-      ? await db.from("reviewer_profiles").update(payload).eq("id", session.user.id)
-      : await db.from("reviewer_profiles").insert(payload);
+      ? await db.from("reviewer_profiles").update(payload).eq("id", userId).select("id").single()
+      : await db.from("reviewer_profiles").insert(payload).select("id").single();
     if (result.error) {
       if (uploadedPath) await db.storage.from(BUCKET).remove([uploadedPath]);
       throw result.error;
     }
     if (selectedPhoto) { localPhotoUrl && URL.revokeObjectURL(localPhotoUrl); localPhotoUrl = ""; selectedPhoto = null; }
-    profile = { ...(profile || { id: session.user.id }), ...payload };
+    profile = { ...(profile || { id: userId }), ...payload };
     avatarUrlCache.clear();
     toast(t("profileSaved"));
     await render();
@@ -315,57 +386,20 @@
     localPhotoUrl = "";
     if (profile?.avatar_path) {
       const oldPath = profile.avatar_path;
-      const { error: updateError } = await db.from("reviewer_profiles").update({ avatar_path: null }).eq("id", session.user.id);
+      const { error: updateError } = await db.from("reviewer_profiles").update({ avatar_path: null }).eq("id", session.user.id).select("id").single();
       if (updateError) throw updateError;
       profile.avatar_path = null;
       const { error } = await db.storage.from(BUCKET).remove([oldPath]);
       if (error) throw error;
     }
-    avatarUrlCache.clear(); toast(t("photoRemoved")); await renderProfile();
+    avatarUrlCache.clear(); toast(t("photoRemoved")); await render();
   }
 
-  async function handleReviewSubmit(form) {
+  async function handleReviewSubmit(form, values = new FormData(form)) {
+    const userId = session?.user.id;
     await getProfile();
-    const values = new FormData(form);
-    const isNew = values.get("course_mode") === "new";
-    const showName = values.has("show_name");
-    const showAvatar = values.has("show_avatar");
-    const showProfile = values.has("show_profile");
-    const shareBackground = values.has("share_background");
-    if (showName && !profile?.display_name) throw new Error(t("ownProfile"));
-    if (showAvatar && !profile?.avatar_path) throw new Error(t("profilePhoto"));
-    if (showProfile && !profile?.is_public) throw new Error(t("publicProfileNeeded"));
-    const payload = {
-      course_id: isNew ? null : String(values.get("course_id") || ""),
-      suggested_course_title: isNew ? String(values.get("suggested_course_title") || "").trim() : null,
-      suggested_course_provider: isNew ? String(values.get("suggested_course_provider") || "") : null,
-      suggested_course_code: isNew ? String(values.get("suggested_course_code") || "").trim() || null : null,
-      suggested_course_credits: isNew && values.get("suggested_course_credits") ? Number(values.get("suggested_course_credits")) : null,
-      suggested_course_language: isNew ? String(values.get("suggested_course_language") || "").trim() || null : null,
-      suggested_course_syllabus_url: isNew ? String(values.get("suggested_course_syllabus_urls") || "").split(/\r?\n/).map((url) => safeUrl(url.trim())).filter(Boolean)[0] || null : null,
-      suggested_course_syllabus_urls: isNew ? String(values.get("suggested_course_syllabus_urls") || "").split(/\r?\n/).map((url) => safeUrl(url.trim())).filter(Boolean) : [],
-      term: String(values.get("term") || "").trim(),
-      teacher: String(values.get("teacher") || "").trim() || null,
-      workload: Number(values.get("workload")),
-      group_work: String(values.get("group_work") || ""),
-      assessment: String(values.get("assessment") || "").trim() || null,
-      fit: String(values.get("fit") || "").trim() || null,
-      avoid: String(values.get("avoid") || "").trim() || null,
-      experience: String(values.get("experience") || "").trim(),
-      notes: String(values.get("notes") || "").trim() || null,
-      content_language: language,
-      reviewer_programme: shareBackground ? profile?.programme || null : null,
-      reviewer_year: shareBackground ? profile?.study_year || null : null,
-      reviewer_prior_knowledge: shareBackground ? profile?.prior_knowledge || null : null,
-      reviewer_selection_goal: shareBackground ? profile?.selection_goal || null : null,
-      share_background: shareBackground,
-      show_name: showName,
-      show_avatar: showAvatar,
-      public_display_name: showName ? profile.display_name : null,
-      public_avatar_path: showAvatar ? profile.avatar_path : null,
-      public_profile_id: showProfile ? session.user.id : null
-    };
-    if ((!isNew && !payload.course_id) || (isNew && !payload.suggested_course_title) || !payload.term || !payload.workload || !payload.group_work || !payload.experience) throw new Error(t("required"));
+    if (!userId || session?.user.id !== userId) throw new Error(t("loginRequired"));
+    const payload = model.reviewPayload(Object.fromEntries(values), profile, session?.user.id, language);
     const editId = form.dataset.editId;
     const result = editId
       ? await db.from("reviews").update(payload).eq("id", editId).eq("reviewer_id", session.user.id).select("id").maybeSingle()
@@ -379,11 +413,12 @@
   document.addEventListener("click", async (event) => {
     const signInButton = event.target.closest("[data-open-login]");
     if (signInButton) { login(); return; }
-    if (event.target.closest("[data-close-login]")) { $("#login").close(); return; }
+    if (event.target.closest("[data-close-login]")) { loginTarget = ""; $("#login").close(); return; }
     const action = event.target.closest("[data-action]")?.dataset.action;
-    if (action === "share") { if (!session) { login(); return; } window.location.hash = "/share"; return; }
+    if (action === "share") { if (!session) { login("community#/share"); return; } window.location.hash = "/share"; return; }
     if (action === "retry") { await render(); return; }
     if (action === "search") { query = $("#course-search")?.value || ""; await renderBrowse(); return; }
+    if (action === "clear-filters") { query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = ""; renderBrowse(); return; }
     if (action === "photo-remove") { try { await handlePhotoRemove(); } catch (error) { fail(error); } return; }
     if (action?.startsWith("edit-review:")) { window.location.hash = `/share?edit=${encodeURIComponent(action.split(":")[1])}`; return; }
     if (event.target.closest("[data-auth-signout]")) {
@@ -391,14 +426,15 @@
       return;
     }
     if (event.target.closest("[data-community-signin]")) {
-      try { await auth.signInWithGoogle(`community${window.location.hash || "#/browse"}`); } catch (error) { fail(error); }
+      try { await auth.signInWithGoogle(loginTarget || `community${window.location.hash || "#/browse"}`); } catch (error) { fail(error); }
       return;
     }
   });
 
   document.addEventListener("change", (event) => {
     if (event.target.matches("input[name=course_mode]")) toggleNewCourseFields();
-    if (event.target.matches("#provider-filter")) { providerFilter = event.target.value; renderBrowse(); }
+    if (event.target.matches("#term")) toggleTermField();
+    if (event.target.matches("#browse-filters select")) { readBrowseFilters(); renderBrowse(); }
     if (event.target.matches("#profile-photo")) {
       const file = event.target.files?.[0];
       const error = $("#photo-error");
@@ -421,28 +457,64 @@
   });
 
   document.addEventListener("submit", async (event) => {
+    if (event.target.id === "browse-filters") { event.preventDefault(); readBrowseFilters(); renderBrowse(); return; }
     if (event.target.id !== "profile-form" && event.target.id !== "review-form") return;
     event.preventDefault();
-    const submit = $("button[type=submit]", event.target); submit.disabled = true;
+    const form = event.target;
+    const values = new FormData(form);
+    const submit = $("button[type=submit]", form);
+    const submitLabel = submit.textContent;
+    submit.textContent = language === "zh" ? "正在保存…" : "Saving…";
+    const controls = [...form.elements].map((control) => [control, control.disabled]);
+    const errorNode = $(".form-error", form);
+    if (errorNode) errorNode.hidden = true;
+    controls.forEach(([control]) => { control.disabled = true; });
+    form.setAttribute("aria-busy", "true");
     try {
-      if (event.target.id === "profile-form") await handleProfileSubmit(event.target);
-      else await handleReviewSubmit(event.target);
-    } catch (error) { fail(error); submit.disabled = false; }
+      if (form.id === "profile-form") await handleProfileSubmit(form, values);
+      else await handleReviewSubmit(form, values);
+    } catch (error) {
+      const message = t(error.code) || error.message || t("notReady");
+      if (errorNode) { errorNode.textContent = message; errorNode.hidden = false; errorNode.focus(); }
+      else fail(error);
+    } finally {
+      controls.forEach(([control, disabled]) => { control.disabled = disabled; });
+      form.removeAttribute("aria-busy");
+      submit.textContent = submitLabel;
+    }
   });
 
-  $("#language-toggle").addEventListener("click", () => {
+  $("#language-toggle").addEventListener("click", async () => {
+    const form = $("#profile-form, #review-form");
+    const hash = window.location.hash;
+    const draft = form ? [...form.elements].filter((input) => input.name && input.type !== "file").map((input) => ({ name: input.name, type: input.type, value: input.value, checked: input.checked })) : [];
     language = language === "zh" ? "en" : "zh";
     localStorage.setItem("odyssey-community-language", language);
-    render();
+    await render();
+    const nextForm = form && document.getElementById(form.id);
+    if (nextForm && window.location.hash === hash) {
+      draft.forEach((field) => {
+        [...nextForm.elements].filter((input) => input.name === field.name && input.type === field.type && (!["radio", "checkbox"].includes(field.type) || input.value === field.value)).forEach((input) => {
+          if (["radio", "checkbox"].includes(field.type)) input.checked = field.checked;
+          else input.value = field.value;
+        });
+      });
+      toggleNewCourseFields(); toggleTermField();
+    }
   });
   window.addEventListener("hashchange", () => { query = ""; render(); });
   window.addEventListener("sils:auth", (event) => {
+    const previousId = session?.user.id;
     session = event.detail.session;
-    window.setTimeout(() => render(), 0);
+    if (previousId === session?.user.id) return;
+    selectedPhoto = null; profile = null; avatarUrlCache.clear();
+    if (localPhotoUrl) URL.revokeObjectURL(localPhotoUrl);
+    localPhotoUrl = "";
+    if (authLoaded) window.setTimeout(() => render(), 0);
   });
   window.addEventListener("sils:auth-error", () => toast(t("authError")));
 
   session = auth?.session || null;
-  auth?.ready?.then((value) => { session = value; render(); });
-  render();
+  renderHeader(); loadingPage();
+  Promise.resolve(auth?.ready).then((value) => { session = value || null; authLoaded = true; render(); });
 })();

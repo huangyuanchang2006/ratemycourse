@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js" defer></script>
     <script src="auth-client.js" defer></script>
+    <script src="community-model.js" defer></script>
     <script src="community.js" defer></script>
   </head>
   <body>
@@ -30,7 +31,7 @@
     <main id="main" class="page shell" tabindex="-1" aria-live="polite"></main>
     <footer>
       <span>Odyssey · Course Experiences</span>
-      <span>Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。</span>
+      <span id="auth-notice">Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。</span>
     </footer>
     <div class="toast" role="status" id="toast" hidden></div>
     <dialog id="login" aria-labelledby="login-title">
@@ -38,9 +39,9 @@
       <b class="brand-mark login-mark">o.</b>
       <p class="eyebrow">GOOGLE SIGN-IN</p>
       <h2 id="login-title">分享你的课程体验</h2>
-      <p>浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。</p>
+      <p id="login-description">浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。</p>
       <button class="button google" type="button" data-community-signin>使用 Google 继续</button>
-      <p class="small">登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。</p>
+      <p class="small" id="login-privacy">登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。</p>
     </dialog>
   </body>
 </html>
