@@ -1,0 +1,26 @@
+/* Existing approved warm paper / burgundy direction. Scoped component styles. */
+.namecard-wall { --wall-ink:#292622; --wall-muted:#70675f; --wall-paper:#f6f3ec; --wall-line:#ded5c9; --wall-accent:#851932; color:var(--wall-ink); padding:64px 0 56px; }
+.namecard-wall * { box-sizing:border-box; }
+.namecard-wall__head { display:flex; justify-content:space-between; align-items:end; gap:24px; max-width:1280px; padding:0 32px; margin:0 auto 22px; }
+.namecard-wall h2 { margin:0 0 12px; font-size:clamp(28px,3vw,42px); line-height:1.15; letter-spacing:-.025em; }
+.namecard-wall__intro { margin:0; max-width:48em; color:var(--wall-muted); font-size:16px; line-height:1.6; }
+.namecard-wall__toggle { flex-shrink:0; padding:10px 16px; border:1px solid var(--wall-line); border-radius:28px; background:transparent; color:var(--wall-ink); font:inherit; min-height:44px; cursor:pointer; }
+.namecard-wall__viewport { overflow-x:auto; scrollbar-width:thin; scrollbar-color:var(--wall-line) transparent; padding:16px 32px 30px; scroll-padding-inline:32px; }
+.namecard-wall__track { display:flex; width:max-content; gap:24px; }
+.namecard { flex:0 0 344px; width:344px; border:1px solid var(--wall-line); border-radius:14px; background:#fffdf9; overflow:hidden; box-shadow:0 12px 24px -14px rgb(62 42 30 / .28),0 3px 8px rgb(62 42 30 / .045); transition:transform .2s ease,box-shadow .2s ease; }
+.namecard:hover { transform:translateY(-3px); box-shadow:0 18px 30px -15px rgb(62 42 30 / .32); }
+.namecard--author { border-top:3px solid var(--wall-accent); }
+.namecard__portrait { width:100%; aspect-ratio:1.65; display:block; object-fit:cover; object-position:center 28%; background:#e6ded2; }
+.namecard__body { padding:22px 24px 24px; }
+.namecard__role { font-size:13px; color:var(--wall-accent); margin:0 0 9px; }
+.namecard h3 { font-family:Georgia,'Songti SC',serif; font-size:30px; line-height:1.15; margin:0 0 7px; letter-spacing:-.02em; }
+.namecard__term { font-size:14px; color:var(--wall-muted); margin:0 0 15px; }
+.namecard__focus { font-size:16px; line-height:1.55; min-height:75px; margin:0 0 20px; }
+.namecard__contacts { display:flex; gap:8px 16px; flex-wrap:wrap; border-top:1px solid var(--wall-line); padding-top:10px; margin-bottom:12px; }
+.namecard__contacts a,.namecard__contacts button { display:inline-flex; align-items:center; min-height:44px; color:var(--wall-muted); background:transparent; border:0; padding:0; font:inherit; font-size:14px; text-decoration:underline; text-underline-offset:4px; cursor:pointer; }
+.namecard__action { display:flex; align-items:center; justify-content:space-between; width:100%; background:none; border:0; border-top:1px solid var(--wall-line); color:var(--wall-accent); padding:16px 0 0; min-height:48px; text-decoration:none; font:inherit; font-weight:600; cursor:pointer; }
+.namecard-wall button:active,.namecard__action:active { transform:translateY(1px); }
+.namecard-wall :focus-visible { outline:3px solid #237099; outline-offset:4px; }
+.namecard-wall__status { min-height:24px; max-width:1280px; padding:0 32px; margin:0 auto; font-size:14px; color:var(--wall-muted); }
+@media (max-width:640px) { .namecard-wall { padding:38px 0 26px; } .namecard-wall__head { padding-inline:20px; align-items:start; } .namecard-wall__toggle { display:none; } .namecard-wall__viewport { padding-inline:20px; scroll-padding-inline:20px; scroll-snap-type:x mandatory; } .namecard { width:min(82vw,344px); flex-basis:min(82vw,344px); scroll-snap-align:start; } .namecard__focus { min-height:75px; } .namecard-wall__status { padding-inline:20px; } }
+@media (prefers-reduced-motion:reduce) { .namecard,.namecard-wall button { transition:none; } .namecard:hover { transform:none; } }

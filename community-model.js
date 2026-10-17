@@ -78,12 +78,14 @@
   }
 
   function filterCatalog(courses, reviews, filters) {
-    const includes = (value, needle) => String(value || "").toLocaleLowerCase().includes(text(needle).toLocaleLowerCase());
-    const hasReviewFilters = Boolean(filters.workload || filters.group || text(filters.fit) || text(filters.avoid));
+    const searchableText = value => text(value).normalize("NFKC").toLocaleLowerCase().replace(/\s+/gu, "");
+    const includes = (value, needle) => searchableText(value).includes(searchableText(needle));
+    const hasReviewFilters = Boolean(filters.workload || filters.group || text(filters.fit) || text(filters.avoid) || filters.author);
     return courses.flatMap((course) => {
       if ((filters.provider && course.provider !== filters.provider) || (filters.language && course.language !== filters.language)) return [];
       const all = reviews.filter((review) => review.course_id === course.id);
       const matching = all.filter((review) =>
+        (!filters.author || review.public_display_name === filters.author) &&
         (!filters.workload || (filters.workload === "light" ? review.workload <= 2 : filters.workload === "heavy" ? review.workload >= 4 : Number(review.workload) === Number(filters.workload))) &&
         (!filters.group || review.group_work === filters.group) && includes(review.fit, filters.fit) && includes(review.avoid, filters.avoid)
       );

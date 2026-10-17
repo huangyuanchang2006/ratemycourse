@@ -3,24 +3,28 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Odyssey：找到适合你的早稻田课程。浏览课程、比较修课体验，查看免费选课指南。" />
-    <title>Odyssey · Find the courses that fit you</title>
-    <link rel="stylesheet" href="community.css?v=20261017-content" />
+    <meta name="description" content="RateMyCourse：找到适合你的早稻田课程。浏览课程、比较修课体验，查看免费选课指南。" />
+    <title>RateMyCourse · Find the courses that fit you</title>
+    <link rel="stylesheet" href="community.css?v=20261018-ui" />
+    <link rel="stylesheet" href="namecard-wall.css?v=20261018-ui" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js" defer></script>
-    <script src="auth-client.js?v=20261017-content" defer></script>
+    <script src="auth-client.js?v=20261018-ui" defer></script>
     <script src="community-model.js" defer></script>
-    <script src="community.js?v=20261017-content" defer></script>
+    <script src="review-translations.js?v=20261018-ui" defer></script>
+    <script src="namecard-wall.js?v=20261018-ui" defer></script>
+    <script src="community.js?v=20261018-ui" defer></script>
   </head>
   <body>
     <a class="skip" href="#main">跳到主要内容</a>
     <header class="site-header">
-      <a class="brand" href="./#/browse" aria-label="Odyssey 首页">
-        <b class="brand-mark">o.</b><span>Odyssey<small>Course experiences</small></span>
+      <a class="brand" href="./#/browse" aria-label="RateMyCourse 首页">
+        <span>RateMyCourse<small>Course experiences</small></span>
       </a>
-      <nav aria-label="Odyssey 导航">
+      <nav aria-label="RateMyCourse 导航">
         <a href="./#/browse" data-nav="browse">课程浏览</a>
         <a href="guide.html" data-nav="guide">选课指南</a>
+        <a href="./#/browse?section=contributors" data-nav="contributors">分享者</a>
         <a href="./#/mine" data-nav="mine">我的投稿</a>
         <a href="./#/profile" data-nav="profile">个人名片</a>
       </nav>
@@ -31,14 +35,15 @@
     </header>
     <main id="main" class="page shell" tabindex="-1" aria-live="polite"></main>
     <noscript><p class="shell">请启用 JavaScript 以浏览课程。Enable JavaScript to browse courses. <a href="guide.html">选课指南 / Registration guide</a></p></noscript>
+    <section id="contributors-wall" hidden></section>
     <footer>
-      <span>Odyssey · Course Experiences</span>
+      <span>RateMyCourse · Course Experiences</span>
       <span id="auth-notice">Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。</span>
     </footer>
     <div class="toast" role="status" id="toast" hidden></div>
     <dialog id="login" aria-labelledby="login-title">
       <button class="close" type="button" data-close-login aria-label="关闭">×</button>
-      <b class="brand-mark login-mark">o.</b>
+      <b class="brand-mark login-mark">r.</b>
       <p class="eyebrow">GOOGLE SIGN-IN</p>
       <h2 id="login-title">分享你的课程体验</h2>
       <p id="login-description">浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。</p>

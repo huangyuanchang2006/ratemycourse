@@ -6,8 +6,9 @@
   const toggle = document.getElementById("language-toggle");
   function render() {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
-    document.title = language === "zh" ? "选课指南 · Odyssey" : "Registration guide · Odyssey";
+    document.title = language === "zh" ? "选课指南 · RateMyCourse" : "Registration guide · RateMyCourse";
     document.querySelectorAll("[data-zh][data-en]").forEach(node => { node.textContent = node.dataset[language]; });
+    document.querySelector(".brand small").textContent = language === "zh" ? "课程体验" : "COURSE EXPERIENCES";
     toggle.textContent = language === "zh" ? "English" : "中文";
     toggle.hidden = false;
   }

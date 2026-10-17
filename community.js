@@ -41,6 +41,13 @@
   let avoidFilter = "";
   let renderVersion = 0;
   let authLoaded = false;
+  let catalogLoadedAt = 0;
+  let browseScrollY = 0;
+  let activePath = "browse";
+  let hasEnteredBrowse = false;
+  let authorFilter = "";
+  let cleanupWall;
+  let wallLanguage = "";
   let loginTarget = "";
 
   const t = (key) => copy[language][key === "published" ? "approved" : key];
@@ -83,6 +90,7 @@
   }
 
   async function loadCourses() {
+    if (catalogLoadedAt && Date.now() - catalogLoadedAt < 60000) return;
     const { data, error } = await db.from("courses").select(COURSE_FIELDS).order("title");
     if (error) throw error;
     courseAliases = new Map((data || []).filter(course => course.canonical_course_id).map(course => [course.id, course.canonical_course_id]));
@@ -90,12 +98,13 @@
     const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,public_display_name,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en").eq("status", "published").not("course_id", "is", null);
     if (reviewError) throw reviewError;
     publishedReviews = reviewData || [];
+    catalogLoadedAt = Date.now();
   }
 
   function renderHeader() {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
-    $(".brand").setAttribute("aria-label", language === "zh" ? "Odyssey 首页" : "Odyssey home");
-    $("nav").setAttribute("aria-label", language === "zh" ? "Odyssey 导航" : "Odyssey navigation");
+    $(".brand").setAttribute("aria-label", language === "zh" ? "RateMyCourse 首页" : "RateMyCourse home");
+    $("nav").setAttribute("aria-label", language === "zh" ? "RateMyCourse 导航" : "RateMyCourse navigation");
     $(".skip").textContent = language === "zh" ? "跳到主要内容" : "Skip to main content";
     $("#auth-notice").textContent = language === "zh" ? "Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。" : "Google sign-in establishes account ownership; it does not verify student status or course attendance.";
     $("#login-title").textContent = language === "zh" ? "分享你的课程体验" : "Share your course experience";
@@ -103,15 +112,20 @@
     $("#login-privacy").textContent = language === "zh" ? "登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。" : "Your login email is not shown on reviews or profile cards. Sign-in does not read Gmail or verify student status.";
     $("[data-close-login]").setAttribute("aria-label", language === "zh" ? "关闭" : "Close");
     $("#login [data-community-signin]").textContent = t("signIn");
+    $(".brand small").textContent = language === "zh" ? "课程体验" : "COURSE EXPERIENCES";
     $("#language-toggle").textContent = language === "zh" ? "English" : "中文";
-    const labels = { browse: t("browse"), mine: t("mine"), profile: t("profile"), guide: language === "zh" ? "选课指南" : "Registration guide" };
+    const labels = { browse: t("browse"), mine: t("mine"), profile: t("profile"), guide: language === "zh" ? "选课指南" : "Registration guide", contributors: language === "zh" ? "分享者" : "Contributors" };
     document.querySelectorAll("[data-nav]").forEach((anchor) => {
       anchor.textContent = labels[anchor.dataset.nav];
-      anchor.setAttribute("aria-current", route().path === anchor.dataset.nav ? "page" : "false");
+      const currentNav = route().path === "browse" && route().params.get("section") === "contributors" ? "contributors" : route().path;
+      anchor.setAttribute("aria-current", currentNav === anchor.dataset.nav ? "page" : "false");
     });
+    const footerBrand = $("footer>span:first-child");
+    if (footerBrand) footerBrand.textContent = language === "zh" ? "RateMyCourse · 课程体验" : "RateMyCourse · Course experiences";
+    document.title = language === "zh" ? "RateMyCourse · 找到适合你的课程" : "RateMyCourse · Find the courses that fit you";
     const slot = $("#account-nav");
     slot.innerHTML = session
-      ? `<a class="button secondary compact" href="./#/mine">${escapeHtml(t("mine"))}</a><button class="quiet" type="button" data-auth-signout>${language === "zh" ? "退出" : "Sign out"}</button>`
+      ? `<button class="quiet" type="button" data-auth-signout>${language === "zh" ? "退出" : "Sign out"}</button>`
       : `<button class="button secondary compact" type="button" data-community-signin>${escapeHtml(t("signIn"))}</button>`;
   }
 
@@ -120,9 +134,20 @@
   }
 
   function displayReview(review) {
-    if (language !== "en" || !review.translation_en) return review;
-    return { ...review, ...Object.fromEntries(Object.entries(review.translation_en).filter(([, value]) => value)) };
+    if (review.translationStatus) return review;
+    return window.SILS_REVIEW_TRANSLATIONS?.displayReview(review, language) || review;
   }
+
+  function translationNotice(review) {
+    const status = review.translationStatus;
+    if (!status) return "";
+    const missing = status.originalFields?.length || status.staleFields?.length;
+    return `<p class="translation-note">${missing
+      ? (language === "zh" ? "部分内容保留作者原文；译文尚待更新。" : "Some content is shown in its original language; translation is pending.")
+      : status.translatedFields?.length ? (language === "zh" ? "译文 · 保留作者原意" : "Translated from the contributor’s original") : ""}</p>`;
+  }
+
+  const teachingLanguage = value => language === "zh" ? ({ English: "英语", Japanese: "日语", Chinese: "中文", Other: "其他" }[value] || value) : value;
 
   function reviewTerm(review) {
     return review.legacy_offered_term && review.term === "修读学期未记录 / Term taken not recorded"
@@ -135,36 +160,41 @@
     const review = reviews[0] ? displayReview(reviews[0]) : null;
     const syllabi = [...new Set([...(course.syllabus_urls || []), course.syllabus_url].filter(Boolean))].map(safeUrl).filter(Boolean);
     return `<article class="course-card">
-      <div class="chips"><span class="pill">${escapeHtml(course.provider || "Odyssey")}</span>${course.language ? `<span class="pill">${escapeHtml(course.language)}</span>` : ""}</div>
+      <div class="chips"><span class="pill">${escapeHtml(course.provider || "RateMyCourse")}</span>${course.language ? `<span class="pill">${escapeHtml(teachingLanguage(course.language))}</span>` : ""}</div>
       <h3><a href="./#/course/${encodeURIComponent(course.id)}">${escapeHtml(course.title)}</a></h3>
-      <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${language === "zh" ? "学分" : "credits"} · ${totalReviews}${escapeHtml(t("reviews"))}</p>
-      ${review ? `<p class="perspective-note small">${language === "zh" ? "一位作者的视角" : "ONE CONTRIBUTOR’S PERSPECTIVE"} · ${escapeHtml(review.public_display_name || t("anonymous"))} · ${escapeHtml(reviewTerm(review))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</p>
-      <p class="snippet">${escapeHtml(review.experience.slice(0, 220))}${review.experience.length > 220 ? "…" : ""}</p>
-      <dl class="audience-notes">${[["fit", review.fit], ["avoid", review.avoid], ["assessment", review.assessment]].filter(([, value]) => value).map(([key, value]) => `<div><dt>${escapeHtml(t(key))}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
+      <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${language === "zh" ? "学分" : course.credits === 1 ? "credit" : "credits"} · ${totalReviews}${language === "zh" ? " 条公开体验" : totalReviews === 1 ? " experience" : " experiences"}</p>
+      ${review ? `<p class="perspective-note small">${language === "zh" ? "一位作者的视角" : "ONE CONTRIBUTOR’S PERSPECTIVE"} · ${escapeHtml(review.public_display_name || t("anonymous"))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</p>
+      ${translationNotice(review)}
+      <dl class="audience-notes">${[["fit", review.fit], ["avoid", review.avoid]].filter(([, value]) => value).map(([key, value]) => `<div><dt>${escapeHtml(t(key))}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
       <div class="card-measures"><div><p class="measure-label">${escapeHtml(t("workload"))}</p><span class="workload-score"><strong>${review.workload}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[review.workload - 1])}</small></span><p class="small">1 = ${escapeHtml(t("workloadNames")[0])} · 5 = ${escapeHtml(t("workloadNames")[4])}</p></div><div><p class="measure-label">${escapeHtml(t("group"))}</p><p>${escapeHtml(t("groupChoices")[model.groups.indexOf(review.group_work)])}</p></div></div>` : ""}
-      ${hasReviewFilters ? `<p class="small">${reviews.length} ${language === "zh" ? "条体验同时符合全部体验筛选条件" : "experience(s) match all review filters"}</p>` : ""}
+      ${hasReviewFilters ? `<p class="small">${reviews.length} ${language === "zh" ? "条体验同时符合全部体验筛选条件" : reviews.length === 1 ? "experience matches all filters" : "experiences match all filters"}</p>` : ""}
       <div class="card-bottom"><a class="text-link" href="./#/course/${encodeURIComponent(course.id)}">${language === "zh" ? "查看课程与评价" : "View course and reviews"}</a>${syllabi[0] ? `<a class="text-link" href="${escapeHtml(syllabi[0])}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))} ↗</a>` : ""}</div>
     </article>`;
   }
 
   function renderBrowse() {
-    const filtered = model.filterCatalog(courses, publishedReviews, { query, provider: providerFilter, language: languageFilter, workload: workloadFilter, group: groupFilter, fit: fitFilter, avoid: avoidFilter });
+    const filtered = model.filterCatalog(courses, publishedReviews.map(displayReview), { query, provider: providerFilter, language: languageFilter, workload: workloadFilter, group: groupFilter, fit: fitFilter, avoid: avoidFilter, author: authorFilter });
     const option = (value, label, selected) => `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
     main.innerHTML = `<section class="hero">
-      <div><p class="eyebrow">WASEDA UNIVERSITY · ODYSSEY</p><h1>${language === "zh" ? "找到适合你的课程。" : "Find the courses that fit you."}</h1>
+      <div><p class="eyebrow">${language === "zh" ? "早稻田大学" : "WASEDA UNIVERSITY"}</p><h1>${language === "zh" ? "找到适合你的课程。" : "Find the courses that fit you."}</h1>
       <p class="subtext">${language === "zh" ? "从早稻田 SILS 与 CJL 开始。先看官方课程资料，再比较修课者的体验与自愿公开背景，判断是否适合自己。浏览免费，无需登录。" : "Starting with SILS and CJL at Waseda. Explore course information, then compare students’ experiences and the background they choose to share. Free to browse, no sign-in needed."}</p>
       <div class="search"><input id="course-search" type="search" value="${escapeHtml(query)}" placeholder="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}"><button class="button" type="button" data-action="search">${language === "zh" ? "搜索" : "Search"}</button></div>
       </div><aside class="hero-example"><span class="pill green">${language === "zh" ? "免费选课指南" : "FREE REGISTRATION GUIDE"}</span><h2>${language === "zh" ? "第一次选课？" : "New to course registration?"}</h2><p>${language === "zh" ? "从你的学部／项目出发，找到官方注册说明、课程要求和选课前检查项。" : "Find the official registration instructions, curriculum links, and a short checklist for your programme."}</p><a class="button secondary" href="guide.html">${language === "zh" ? "打开选课指南" : "Open the guide"} ↗</a></aside>
     </section>
-    <section class="programme-browse" aria-label="${language === "zh" ? "按学部／项目浏览" : "Browse by programme"}"><p class="small">${language === "zh" ? "早稻田大学 · 按学部／项目浏览" : "Waseda University · Browse by programme"}</p><div class="programme-links">${["", "SILS", "CJL"].map((value) => `<button type="button" class="button secondary compact" data-programme="${value}" aria-pressed="${providerFilter === value}">${value || (language === "zh" ? "全部课程" : "All courses")}</button>`).join("")}</div></section>
-    <div class="page-heading"><div><p class="eyebrow">BROWSE</p><h2>${escapeHtml(t("browse"))}</h2></div><a class="button" href="./#/share">${escapeHtml(t("add"))}</a></div>
+    <div class="page-heading"><div><h2>${escapeHtml(t("browse"))}</h2></div><a class="button" href="./#/share">${escapeHtml(t("add"))}</a></div>
     <div class="browse"><form class="filters" id="browse-filters"><h2>${language === "zh" ? "筛选课程" : "Filter courses"}</h2>
       <div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select id="provider-filter" name="provider"><option value="">${escapeHtml(t("all"))}</option>${model.providers.map((item) => option(item, item, providerFilter)).join("")}</select></div>
-      <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select id="language-filter" name="language">${option("", language === "zh" ? "全部语言" : "All languages", languageFilter)}${[...new Set(courses.map((course) => course.language).filter(Boolean))].sort().map((item) => option(item, item, languageFilter)).join("")}</select></div>
+      <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select id="language-filter" name="language">${option("", language === "zh" ? "全部语言" : "All languages", languageFilter)}${[...new Set(courses.map((course) => course.language).filter(Boolean))].sort().map((item) => option(item, teachingLanguage(item), languageFilter)).join("")}</select></div>
       <div class="filter"><label for="workload-filter">${escapeHtml(t("workload"))} · 1–5</label><select id="workload-filter" name="workload">${option("", language === "zh" ? "全部负担" : "Any workload", workloadFilter)}${option("light", `1–2 · ${language === "zh" ? "较轻" : "Lighter"}`, workloadFilter)}${option("3", `3 · ${t("workloadNames")[2]}`, workloadFilter)}${option("heavy", `4–5 · ${language === "zh" ? "较重" : "Heavier"}`, workloadFilter)}</select><p class="hint">1 = ${t("workloadNames")[0]} · 5 = ${t("workloadNames")[4]}</p></div>
       <div class="filter"><label for="group-filter">${escapeHtml(t("group"))}</label><select id="group-filter" name="group">${option("", language === "zh" ? "全部合作方式" : "Any group work", groupFilter)}${model.groups.map((key, index) => option(key, t("groupChoices")[index], groupFilter)).join("")}</select></div>
-      <div class="audience-filter"><h3>${language === "zh" ? "按体验原文筛选" : "Search the contributor’s words"}</h3><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${language === "zh" ? "负担、合作和适合／不适合条件需同时命中同一条体验。“不适合谁”搜索对应原文。" : "Workload, group work, fit and avoid must match the same experience. “May not fit” searches that field’s wording."}</p><button class="button secondary" type="submit">${language === "zh" ? "应用筛选" : "Apply filters"}</button>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "quiet")}</div>
-    </form><section><p class="results-meta"><span>${filtered.length} / ${courses.length}</span><span>${language === "zh" ? "条课程记录 · 每位作者的体验分别呈现。" : "catalog records · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
+      <div class="filter"><label for="author-filter">${language === "zh" ? "体验作者" : "Contributor"}</label><select id="author-filter" name="author">${option("", language === "zh" ? "全部作者" : "All contributors", authorFilter)}${[...new Set(publishedReviews.map(review => review.public_display_name).filter(Boolean))].sort().map(name => option(name, name, authorFilter)).join("")}</select></div>
+      <details class="audience-filter" ${fitFilter || avoidFilter ? "open" : ""}><summary>${language === "zh" ? "更多筛选：适合／不适合" : "More filters: fit and avoid"}</summary><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${language === "zh" ? "按当前显示语言匹配。同一条体验须同时满足各项条件。" : "Matches the displayed language. All conditions must match the same experience."}</p><button class="button secondary" type="submit">${language === "zh" ? "应用筛选" : "Apply filters"}</button></details>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "quiet filter-reset")}
+    </form><section><p class="results-meta"><span>${filtered.length} / ${courses.length}${authorFilter ? ` · ${escapeHtml(authorFilter)}` : ""}</span><span>${language === "zh" ? "条课程记录 · 每位作者的体验分别呈现。" : "catalog records · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
+    if (!hasEnteredBrowse) {
+      hasEnteredBrowse = true;
+      main.classList.add("is-entering");
+      window.setTimeout(() => main.classList.remove("is-entering"), 650);
+    }
   }
 
   function readBrowseFilters() {
@@ -177,6 +207,7 @@
     groupFilter = String(values.get("group") || "");
     fitFilter = String(values.get("fit") || "").trim();
     avoidFilter = String(values.get("avoid") || "").trim();
+    authorFilter = String(values.get("author") || "");
   }
 
   function identity(review, avatar) {
@@ -196,11 +227,14 @@
       [language === "zh" ? "选课目标" : "Course goal", review.reviewer_selection_goal]
     ].filter(([, value]) => value);
     return `<article class="experience">
-      <div class="review-top"><div>${identity(review, avatar)}<small>${review.legacy_source_id ? (language === "zh" ? "历史体验 · 保留原作者署名" : "Archived experience · original attribution") : escapeHtml(shortDate(review.created_at))}</small></div><span class="pill green">${review.legacy_source_id ? (language === "zh" ? "历史导入" : "Archive") : escapeHtml(t("approved"))}</span></div>
-      ${review.legacy_source_url ? `<p class="small">${language === "zh" ? "从原始课程表恢复；原表的 Spring／Fall 为开课信息，不作为作者修读时间。" : "Restored from the original course sheet. Spring / Fall describes when the course is offered, not when the author took it."} <a class="text-link" href="${escapeHtml(safeUrl(review.legacy_source_url))}" target="_blank" rel="noreferrer">${language === "zh" ? "查看原始来源" : "View source"}</a></p>` : ""}
+      <div class="review-top"><div>${identity(review, avatar)}${review.legacy_source_id ? "" : `<small>${escapeHtml(shortDate(review.created_at))}</small>`}</div><span class="pill green">${review.legacy_source_id ? (language === "zh" ? "历史导入" : "Archive") : escapeHtml(t("approved"))}</span></div>
+
       ${review.share_background && contextFields.length ? `<section class="context"><div class="context-label">${language === "zh" ? "作者自述背景" : "AUTHOR-REPORTED BACKGROUND"}<span>${escapeHtml(t("contextAuthor"))}</span></div><dl class="context-grid">${contextFields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></section>` : ""}
       <div class="review-measures"><p><span class="measure-label">${escapeHtml(t("workload"))}</span><span class="workload-score"><strong>${Number(review.workload) || "—"}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[(Number(review.workload) || 1) - 1])}</small></span></p><p><span class="measure-label">${escapeHtml(t("group"))}</span><strong>${escapeHtml(t("groupChoices")[({ none: 0, some: 1, heavy: 2, mixed: 3 })[review.group_work] ?? 3])}</strong></p></div>
-      ${[["experience", review.experience], ["assessment", review.assessment], ["fit", review.fit], ["avoid", review.avoid], ["notes", review.notes]].filter(([, value]) => value).map(([label, value]) => `<section class="review-body"><h3>${escapeHtml(t(label))}</h3><p>${escapeHtml(value)}</p></section>`).join("")}
+      ${translationNotice(review)}
+      ${[["fit", review.fit], ["avoid", review.avoid], ["experience", review.experience], ["assessment", review.assessment], ["notes", review.notes]].filter(([, value]) => value).map(([label, value]) => `<section class="review-body"><h3>${escapeHtml(t(label))}</h3><p>${escapeHtml(value)}</p></section>`).join("")}
+      ${review.legacy_source_url ? `<details class="source-note"><summary>${language === "zh" ? "来源与修读时间说明" : "Source and term information"}</summary><p class="small">${language === "zh" ? "从原始课程表恢复；原表的 Spring／Fall 为开课信息，不作为作者修读时间。" : "Restored from the original course sheet. Spring / Fall describes when the course is offered, not when the author took it."} <a class="text-link" href="${escapeHtml(safeUrl(review.legacy_source_url))}" target="_blank" rel="noreferrer">${language === "zh" ? "查看原始来源" : "View source"}</a></p></details>` : ""}
+      ${review.translationStatus?.translatedFields?.length && review.rawFields ? `<details class="original-review"><summary>${language === "zh" ? "查看作者原文" : "Read the contributor’s original"}</summary>${["experience", "fit", "avoid", "assessment", "notes"].filter(key => review.rawFields[key]).map(key => `<section class="review-body"><h3>${escapeHtml(t(key))}</h3><p>${escapeHtml(review.rawFields[key])}</p></section>`).join("")}</details>` : ""}
     </article>`;
   }
 
@@ -217,15 +251,15 @@
     if (version !== renderVersion) return;
     const proposalButton = `<a class="button" href="./#/share?course=${encodeURIComponent(id)}">${language === "zh" ? "分享这门课的体验" : "Share your experience"}</a>`;
     main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(course.provider || "")}</span></div>
-      <p class="eyebrow">${escapeHtml(course.provider || "ODYSSEY")}</p><h1 class="detail-title">${escapeHtml(course.title)}</h1>
-      <dl class="course-facts"><div><dt>${escapeHtml(t("courseCode"))}</dt><dd>${escapeHtml(course.course_code || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div><div><dt>${escapeHtml(t("language"))}</dt><dd>${escapeHtml(course.language || "—")}</dd></div></dl>
-      <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${language === "zh" ? "暂无官方链接" : "No official syllabus link listed"}</span>`}${proposalButton}</div>
+      <p class="eyebrow">${escapeHtml(course.provider || "RateMyCourse")}</p><h1 class="detail-title">${escapeHtml(course.title)}</h1>
+      <dl class="course-facts"><div><dt>${escapeHtml(t("courseCode"))}</dt><dd>${escapeHtml(course.course_code || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div><div><dt>${escapeHtml(t("language"))}</dt><dd>${escapeHtml(teachingLanguage(course.language) || "—")}</dd></div></dl>
+      <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${language === "zh" ? "暂无官方链接" : "No official syllabus link listed"}</span>`}</div>
       <div class="section-heading"><h2>${language === "zh" ? "修课体验" : "Student experiences"} <span class="pill">${reviews.length}</span></h2></div>
       <div class="detail-layout"><section class="review-stack">${reviews.length ? cards.join("") : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`}</section><aside><div class="side-card green"><h3>${language === "zh" ? "分享你的视角" : "Add your perspective"}</h3><p>${language === "zh" ? "每条评价保留作者自己的课程负担和适合度，不做平均分排名。" : "Each contribution keeps the author’s own workload and fit notes; experiences are not averaged into a rating."}</p>${proposalButton}</div></aside></div>`;
   }
 
   function gated(title, description) {
-    main.innerHTML = `<section class="gated"><b class="brand-mark login-mark">o.</b><p class="eyebrow">GOOGLE SIGN-IN</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><button class="button" type="button" data-open-login>${escapeHtml(t("signIn"))}</button></section>`;
+    main.innerHTML = `<section class="gated"><b class="brand-mark login-mark">r.</b><p class="eyebrow">GOOGLE SIGN-IN</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><button class="button" type="button" data-open-login>${escapeHtml(t("signIn"))}</button></section>`;
   }
 
   async function renderMine(version) {
@@ -335,11 +369,35 @@
     $("#term-other").required = isOther;
   }
 
+  function syncContributorWall() {
+    const host = $("#contributors-wall");
+    if (!host) return;
+    const visible = route().path === "browse";
+    host.hidden = !visible;
+    if (!visible) return;
+    if (wallLanguage !== language) {
+      cleanupWall?.();
+      cleanupWall = window.mountNamecardWall?.(host, { language, onCourses(name) {
+        query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = "";
+        authorFilter = name;
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#/browse`);
+        renderBrowse();
+        renderHeader();
+        const results = $(".results-meta");
+        results?.setAttribute("tabindex", "-1");
+        results?.scrollIntoView({ block: "start", behavior: "instant" });
+        results?.focus({ preventScroll: true });
+      }});
+      wallLanguage = language;
+    }
+  }
+
   async function render() {
     const version = ++renderVersion;
     renderHeader();
     if (!db) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2></div>`; return; }
-    loadingPage();
+    if (!catalogLoadedAt) loadingPage();
+    main.setAttribute("aria-busy", "true");
     try {
       await loadCourses();
       if (version !== renderVersion) return;
@@ -352,9 +410,13 @@
       else renderBrowse();
       if (version !== renderVersion) return;
       renderHeader();
+      syncContributorWall();
+      if (route().params.get("section") === "contributors") $("#contributors-wall")?.scrollIntoView({ block: "start", behavior: "instant" });
+      main.removeAttribute("aria-busy");
     } catch (error) {
       if (version !== renderVersion) return;
-      console.error("Odyssey community page failed", error);
+      main.removeAttribute("aria-busy");
+      console.error("RateMyCourse community page failed", error);
       main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2><p>${escapeHtml(error?.message || "")}</p><button class="button" type="button" data-action="retry">${language === "zh" ? "重试" : "Try again"}</button></div>`;
     }
   }
@@ -423,6 +485,7 @@
       : await db.from("reviews").insert(payload).select("id").single();
     if (result.error) throw result.error;
     if (!result.data?.id) throw new Error(t("notReady"));
+    catalogLoadedAt = 0;
     toast(editId ? t("updated") : t("reviewSaved"));
     window.location.hash = "/mine";
   }
@@ -431,19 +494,11 @@
     const signInButton = event.target.closest("[data-open-login]");
     if (signInButton) { login(); return; }
     if (event.target.closest("[data-close-login]")) { loginTarget = ""; $("#login").close(); return; }
-    const programme = event.target.closest("[data-programme]");
-    if (programme) {
-      readBrowseFilters();
-      providerFilter = programme.dataset.programme;
-      renderBrowse();
-      $("#provider-filter")?.focus();
-      return;
-    }
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (action === "share") { if (!session) { login("community#/share"); return; } window.location.hash = "/share"; return; }
     if (action === "retry") { await render(); return; }
-    if (action === "search") { query = $("#course-search")?.value || ""; await renderBrowse(); return; }
-    if (action === "clear-filters") { query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = ""; renderBrowse(); return; }
+    if (action === "search") { query = $("#course-search")?.value || ""; renderBrowse(); $(".results-meta")?.scrollIntoView({block: "start", behavior: "instant"}); return; }
+    if (action === "clear-filters") { query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = authorFilter = ""; renderBrowse(); return; }
     if (action === "photo-remove") { try { await handlePhotoRemove(); } catch (error) { fail(error); } return; }
     if (action?.startsWith("edit-review:")) { window.location.hash = `/share?edit=${encodeURIComponent(action.split(":")[1])}`; return; }
     if (event.target.closest("[data-auth-signout]")) {
@@ -474,6 +529,13 @@
       localPhotoUrl = URL.createObjectURL(file);
       const avatar = $(".profile-avatar"); if (avatar) avatar.innerHTML = `<img src="${escapeHtml(localPhotoUrl)}" alt="">`;
       const hint = $("#photo-hint"); if (hint) hint.textContent = t("newPhoto");
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.target.matches("#course-search") && event.key === "Enter") {
+      event.preventDefault();
+      $(".results-meta")?.scrollIntoView({block: "start", behavior: "instant"});
     }
   });
 
@@ -527,7 +589,17 @@
       toggleNewCourseFields(); toggleTermField();
     }
   });
-  window.addEventListener("hashchange", () => { query = ""; render(); });
+  document.addEventListener("click", (event) => {
+    if (activePath === "browse" && event.target.closest('a[href*="#/course/"]')) browseScrollY = window.scrollY;
+  });
+  window.addEventListener("hashchange", async () => {
+    const nextPath = route().path;
+    const returning = nextPath === "browse" && activePath !== "browse";
+    activePath = nextPath;
+    await render();
+    if (route().params.get("section") === "contributors") $("#contributors-wall")?.scrollIntoView({ block: "start", behavior: "instant" });
+    else window.scrollTo({ top: returning ? browseScrollY : 0, behavior: "instant" });
+  });
   window.addEventListener("sils:auth", (event) => {
     const previousId = session?.user.id;
     session = event.detail.session;
@@ -539,6 +611,7 @@
   });
   window.addEventListener("sils:auth-error", () => toast(t("authError")));
 
+  activePath = route().path;
   session = auth?.session || null;
   renderHeader(); loadingPage();
   Promise.resolve(auth?.ready).then((value) => { session = value || null; authLoaded = true; render(); });
