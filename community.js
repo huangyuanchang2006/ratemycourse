@@ -6,9 +6,9 @@
   const auth = window.SILS_AUTH;
   const db = auth?.client;
   const model = window.SILS_COMMUNITY_MODEL;
-  const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_profile_id";
+  const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_profile_id,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en";
   const OWN_REVIEW_FIELDS = `${PUBLIC_REVIEW_FIELDS},reviewer_id,status,reviewer_background,updated_at,suggested_course_syllabus_urls,show_name,show_avatar`;
-  const COURSE_FIELDS = "id,course_code,title,provider,credits,language,syllabus_url,syllabus_urls,created_at";
+  const COURSE_FIELDS = "id,course_code,title,provider,credits,language,syllabus_url,syllabus_urls,created_at,canonical_course_id";
   const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
   const BUCKET = "reviewer-avatars";
   const copy = {
@@ -27,6 +27,7 @@
   let session = null;
   let profile = null;
   let courses = [];
+  let courseAliases = new Map();
   let publishedReviews = [];
   let localPhotoUrl = "";
   let selectedPhoto = null;
@@ -84,8 +85,9 @@
   async function loadCourses() {
     const { data, error } = await db.from("courses").select(COURSE_FIELDS).order("title");
     if (error) throw error;
-    courses = data || [];
-    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,public_display_name").eq("status", "published").not("course_id", "is", null);
+    courseAliases = new Map((data || []).filter(course => course.canonical_course_id).map(course => [course.id, course.canonical_course_id]));
+    courses = (data || []).filter(course => !course.canonical_course_id);
+    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,public_display_name,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en").eq("status", "published").not("course_id", "is", null);
     if (reviewError) throw reviewError;
     publishedReviews = reviewData || [];
   }
@@ -117,15 +119,26 @@
     main.innerHTML = `<div class="empty-state"><span class="empty-icon">…</span><h2>${escapeHtml(t("loading"))}</h2></div>`;
   }
 
+  function displayReview(review) {
+    if (language !== "en" || !review.translation_en) return review;
+    return { ...review, ...Object.fromEntries(Object.entries(review.translation_en).filter(([, value]) => value)) };
+  }
+
+  function reviewTerm(review) {
+    return review.legacy_offered_term && review.term === "修读学期未记录 / Term taken not recorded"
+      ? (language === "zh" ? "修读学期未记录；原表开课：" : "Term taken not recorded; offered: ") + review.legacy_offered_term
+      : model.termLabel(review.term, language);
+  }
+
   function courseCard(entry) {
     const { course, reviews, totalReviews, hasReviewFilters } = entry;
-    const review = reviews[0];
+    const review = reviews[0] ? displayReview(reviews[0]) : null;
     const syllabi = [...new Set([...(course.syllabus_urls || []), course.syllabus_url].filter(Boolean))].map(safeUrl).filter(Boolean);
     return `<article class="course-card">
       <div class="chips"><span class="pill">${escapeHtml(course.provider || "Odyssey")}</span>${course.language ? `<span class="pill">${escapeHtml(course.language)}</span>` : ""}</div>
       <h3><a href="./#/course/${encodeURIComponent(course.id)}">${escapeHtml(course.title)}</a></h3>
       <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${language === "zh" ? "学分" : "credits"} · ${totalReviews}${escapeHtml(t("reviews"))}</p>
-      ${review ? `<p class="perspective-note small">${language === "zh" ? "一位作者的视角" : "ONE CONTRIBUTOR’S PERSPECTIVE"} · ${escapeHtml(review.public_display_name || t("anonymous"))} · ${escapeHtml(model.termLabel(review.term, language))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</p>
+      ${review ? `<p class="perspective-note small">${language === "zh" ? "一位作者的视角" : "ONE CONTRIBUTOR’S PERSPECTIVE"} · ${escapeHtml(review.public_display_name || t("anonymous"))} · ${escapeHtml(reviewTerm(review))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</p>
       <p class="snippet">${escapeHtml(review.experience.slice(0, 220))}${review.experience.length > 220 ? "…" : ""}</p>
       <dl class="audience-notes">${[["fit", review.fit], ["avoid", review.avoid], ["assessment", review.assessment]].filter(([, value]) => value).map(([key, value]) => `<div><dt>${escapeHtml(t(key))}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
       <div class="card-measures"><div><p class="measure-label">${escapeHtml(t("workload"))}</p><span class="workload-score"><strong>${review.workload}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[review.workload - 1])}</small></span><p class="small">1 = ${escapeHtml(t("workloadNames")[0])} · 5 = ${escapeHtml(t("workloadNames")[4])}</p></div><div><p class="measure-label">${escapeHtml(t("group"))}</p><p>${escapeHtml(t("groupChoices")[model.groups.indexOf(review.group_work)])}</p></div></div>` : ""}
@@ -170,10 +183,11 @@
     const name = review.public_display_name || t("anonymous");
     const avatarMarkup = avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
     const profileLink = review.public_profile_id ? `<a class="text-link" href="./#/people/${encodeURIComponent(review.public_profile_id)}">${escapeHtml(t("openProfile"))} ↗</a>` : "";
-    return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(model.termLabel(review.term, language))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</small></div>${profileLink}</div>`;
+    return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(reviewTerm(review))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</small></div>${profileLink}</div>`;
   }
 
   async function reviewCard(review) {
+    review = displayReview(review);
     const avatar = review.public_avatar_path ? await signedAvatar(review.public_avatar_path) : "";
     const contextFields = [
       [language === "zh" ? "修读项目／学部" : "Programme", review.reviewer_programme],
@@ -182,7 +196,8 @@
       [language === "zh" ? "选课目标" : "Course goal", review.reviewer_selection_goal]
     ].filter(([, value]) => value);
     return `<article class="experience">
-      <div class="review-top"><div>${identity(review, avatar)}<small>${escapeHtml(shortDate(review.created_at))}</small></div><span class="pill green">${escapeHtml(t("approved"))}</span></div>
+      <div class="review-top"><div>${identity(review, avatar)}<small>${review.legacy_source_id ? (language === "zh" ? "历史体验 · 保留原作者署名" : "Archived experience · original attribution") : escapeHtml(shortDate(review.created_at))}</small></div><span class="pill green">${review.legacy_source_id ? (language === "zh" ? "历史导入" : "Archive") : escapeHtml(t("approved"))}</span></div>
+      ${review.legacy_source_url ? `<p class="small">${language === "zh" ? "从原始课程表恢复；原表的 Spring／Fall 为开课信息，不作为作者修读时间。" : "Restored from the original course sheet. Spring / Fall describes when the course is offered, not when the author took it."} <a class="text-link" href="${escapeHtml(safeUrl(review.legacy_source_url))}" target="_blank" rel="noreferrer">${language === "zh" ? "查看原始来源" : "View source"}</a></p>` : ""}
       ${review.share_background && contextFields.length ? `<section class="context"><div class="context-label">${language === "zh" ? "作者自述背景" : "AUTHOR-REPORTED BACKGROUND"}<span>${escapeHtml(t("contextAuthor"))}</span></div><dl class="context-grid">${contextFields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></section>` : ""}
       <div class="review-measures"><p><span class="measure-label">${escapeHtml(t("workload"))}</span><span class="workload-score"><strong>${Number(review.workload) || "—"}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[(Number(review.workload) || 1) - 1])}</small></span></p><p><span class="measure-label">${escapeHtml(t("group"))}</span><strong>${escapeHtml(t("groupChoices")[({ none: 0, some: 1, heavy: 2, mixed: 3 })[review.group_work] ?? 3])}</strong></p></div>
       ${[["experience", review.experience], ["assessment", review.assessment], ["fit", review.fit], ["avoid", review.avoid], ["notes", review.notes]].filter(([, value]) => value).map(([label, value]) => `<section class="review-body"><h3>${escapeHtml(t(label))}</h3><p>${escapeHtml(value)}</p></section>`).join("")}
@@ -190,6 +205,7 @@
   }
 
   async function renderCourse(id, version) {
+    id = courseAliases.get(id) || id;
     const course = courses.find((item) => item.id === id) || (await db.from("courses").select(COURSE_FIELDS).eq("id", id).maybeSingle()).data;
     if (version !== renderVersion) return;
     if (!course) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${link("./#/browse", t("backToBrowse"), "button")}</div>`; return; }
