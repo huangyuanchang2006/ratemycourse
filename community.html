@@ -1,47 +1,10 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="浏览与分享 SILS Odyssey 课程体验。" />
-    <title>Odyssey · Course Experiences</title>
-    <link rel="stylesheet" href="community.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js" defer></script>
-    <script src="auth-client.js?v=20261017-project-return" defer></script>
-    <script src="community-model.js" defer></script>
-    <script src="community.js" defer></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Odyssey · Continue to courses</title>
+    <script src="community-redirect.js"></script>
   </head>
-  <body>
-    <a class="skip" href="#main">跳到主要内容</a>
-    <header class="site-header">
-      <a class="brand" href="community.html#/browse" aria-label="Odyssey 首页">
-        <b class="brand-mark">o.</b><span>Odyssey<small>Course experiences</small></span>
-      </a>
-      <nav aria-label="Odyssey 导航">
-        <a href="community.html#/browse" data-nav="browse">课程浏览</a>
-        <a href="community.html#/mine" data-nav="mine">我的投稿</a>
-        <a href="community.html#/profile" data-nav="profile">个人名片</a>
-      </nav>
-      <div class="community-actions">
-        <button class="quiet" type="button" id="language-toggle">English</button>
-        <span id="account-nav"></span>
-      </div>
-    </header>
-    <main id="main" class="page shell" tabindex="-1" aria-live="polite"></main>
-    <footer>
-      <span>Odyssey · Course Experiences</span>
-      <span id="auth-notice">Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。</span>
-    </footer>
-    <div class="toast" role="status" id="toast" hidden></div>
-    <dialog id="login" aria-labelledby="login-title">
-      <button class="close" type="button" data-close-login aria-label="关闭">×</button>
-      <b class="brand-mark login-mark">o.</b>
-      <p class="eyebrow">GOOGLE SIGN-IN</p>
-      <h2 id="login-title">分享你的课程体验</h2>
-      <p id="login-description">浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。</p>
-      <button class="button google" type="button" data-community-signin>使用 Google 继续</button>
-      <p class="small" id="login-privacy">登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。</p>
-    </dialog>
-  </body>
+  <body><p><a href="./#/browse">前往 Odyssey / Continue to Odyssey</a></p></body>
 </html>

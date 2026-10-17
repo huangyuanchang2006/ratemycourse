@@ -31,3 +31,27 @@ footer{display:flex;justify-content:space-between;gap:25px;padding:23px max(28px
 .file-actions input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .field input[type=file]{width:auto}
 @media(max-width:780px){.community-actions{margin-left:auto;gap:6px}.community-actions .button{min-height:33px;padding:7px 9px;font-size:9px}.community-actions #account-nav{gap:4px}.public-person{padding:24px 20px}.review-identity .text-link{font-size:9px}}
+
+/* Homepage and lightweight registration guide reuse the existing Odyssey palette. */
+.programme-browse{padding:16px 0 26px;border-bottom:1px solid var(--line);margin-bottom:28px}
+.programme-links{display:flex;flex-wrap:wrap;gap:10px}
+.programme-links [aria-pressed=true],.programme-links [aria-pressed=true]:hover{background:var(--wine);border-color:var(--wine);color:white}
+.page-heading h2{font-size:32px;letter-spacing:-1px;margin:0}
+.guide-intro{max-width:780px;padding:22px 0 28px}
+.guide-intro h1{font-size:clamp(36px,5vw,58px);letter-spacing:-1.8px;line-height:1.15}
+.guide-jumps{display:flex;gap:12px;flex-wrap:wrap;margin:22px 0 0}
+.guide-section{scroll-margin-top:24px;margin:30px 0 40px}
+.guide-section>h2{font-size:25px}
+.guide-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.guide-grid h3{font-size:21px}
+.guide-links{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:13px}
+.guide-links a{overflow-wrap:anywhere}
+.guide-checklist{padding:0;list-style:none;counter-reset:guide;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.guide-checklist li{counter-increment:guide;padding:22px 24px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.guide-checklist li:before{content:"0" counter(guide);display:block;color:var(--wine);font-size:12px;font-weight:700;margin-bottom:12px}
+.guide-checklist h3{font-size:16px;margin-bottom:8px}
+.guide-checklist p{color:var(--muted);font-size:13px;margin:0}
+.guide-note{padding:22px 24px;background:var(--green-soft);border-radius:12px;margin:26px 0}
+.guide-note p:last-child{margin-bottom:0}
+.guide-page footer a{font-size:inherit}
+@media(max-width:780px){.guide-grid,.guide-checklist{grid-template-columns:1fr}.guide-intro{padding-top:7px}.guide-intro h1{font-size:39px}.page-heading h2{font-size:27px}}

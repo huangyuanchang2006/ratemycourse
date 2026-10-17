@@ -1,433 +1,49 @@
 <!doctype html>
 <html lang="zh-CN">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="面向 2026 年 9 月 SILS 新生的选课经验、注册节点与工具工作台。"
-    />
-    <title>Chart Your Own Odyssey｜SILS 2026 选课工作台</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="odyssey-atlas.css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Odyssey：找到适合你的早稻田课程。浏览课程、比较修课体验，查看免费选课指南。" />
+    <title>Odyssey · Find the courses that fit you</title>
+    <link rel="stylesheet" href="community.css?v=20261017-home" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js" defer></script>
-    <script src="auth-client.js?v=20261017-project-return" defer></script>
-    <script src="auth-shell.js" defer></script>
-    <script src="data.js" defer></script>
-    <script src="data-en.js" defer></script>
-    <script src="locale.js" defer></script>
-    <script src="app.js" defer></script>
+    <script src="auth-client.js?v=20261017-home" defer></script>
+    <script src="community-model.js" defer></script>
+    <script src="community.js?v=20261017-home" defer></script>
   </head>
   <body>
-    <a class="skip-link" href="#main" data-i18n="accessibility.skipLink">跳到主要内容</a>
-
-    <header class="site-header" data-header>
-      <a class="brand" href="#home" aria-label="返回首页" data-i18n-attr="aria-label:accessibility.home">
-        <span class="brand-mark">S</span>
-        <span data-i18n="brand">SILS 选课工作台</span>
+    <a class="skip" href="#main">跳到主要内容</a>
+    <header class="site-header">
+      <a class="brand" href="./#/browse" aria-label="Odyssey 首页">
+        <b class="brand-mark">o.</b><span>Odyssey<small>Course experiences</small></span>
       </a>
-      <div class="header-actions">
-        <button class="language-toggle" type="button" data-language-toggle aria-pressed="false">
-          English
-        </button>
-        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
-          <span data-i18n="menu">菜单</span>
-        </button>
-      </div>
-      <nav class="site-nav" id="site-nav" aria-label="主要导航" data-i18n-attr="aria-label:accessibility.mainNav">
-        <a href="#guides" data-i18n="presenters.context">分享者</a>
-        <a href="#requirements" data-i18n="nav.requirements">毕业要求</a>
-        <a href="#courses" data-i18n="nav.courses">全部课程</a>
-        <a href="#before-register" data-i18n="nav.beforeRegister">注册前检查</a>
-        <a href="#registration" data-i18n="nav.registration">注册节点</a>
-        <a href="#resources" data-i18n="nav.resources">工具</a>
-        <a href="community.html">Odyssey</a>
-        <span id="account-nav"></span>
+      <nav aria-label="Odyssey 导航">
+        <a href="./#/browse" data-nav="browse">课程浏览</a>
+        <a href="guide.html" data-nav="guide">选课指南</a>
+        <a href="./#/mine" data-nav="mine">我的投稿</a>
+        <a href="./#/profile" data-nav="profile">个人名片</a>
       </nav>
-    </header>
-
-    <nav class="voyage-nav" aria-label="Odyssey 章节航线" data-i18n-attr="aria-label:accessibility.voyageNav">
-      <span class="voyage-track" aria-hidden="true"><span class="voyage-progress"></span></span>
-      <a href="#home"><span data-i18n="voyage.home">出发</span></a>
-      <a href="#guides"><span data-i18n="presenters.context">分享者</span></a>
-      <a href="#requirements"><span data-i18n="voyage.requirements">毕业要求</span></a>
-      <a href="#courses"><span data-i18n="voyage.courses">全部课程</span></a>
-      <a href="#before-register"><span data-i18n="voyage.beforeRegister">注册前检查</span></a>
-      <a href="#registration"><span data-i18n="voyage.registration">注册节点</span></a>
-      <a href="#resources"><span data-i18n="voyage.resources">工具</span></a>
-    </nav>
-    <div class="voyage-mobile-track" aria-hidden="true"><span class="voyage-progress"></span></div>
-
-    <main id="main">
-      <section class="hero shell" id="home" data-chapter="Departure">
-        <div class="hero-copy">
-          <p class="context-line" data-i18n="hero.context">SILS 2026 秋季新生选课工作台</p>
-          <p class="odyssey-title">Chart Your Own Odyssey</p>
-          <h1 data-i18n="hero.title">Welcome to SILS. Your Odyssey Starts Here.</h1>
-          <div class="audience-tags" aria-label="适合人群" data-i18n-attr="aria-label:hero.audienceAria">
-            <span data-i18n="hero.tags.0">2026 年 9 月入学</span>
-            <span data-i18n="hero.tags.1">英语授课友好</span>
-            <span data-i18n="hero.tags.2">日语仍在学习中</span>
-          </div>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#courses" data-i18n="hero.primaryAction">开始浏览</a>
-            <a class="text-link" href="#guides" data-i18n="hero.secondaryAction">认识分享者</a>
-          </div>
-        </div>
-
-        <aside class="action-panel" aria-labelledby="current-action-title">
-          <div class="action-heading">
-            <p id="current-action-title" data-i18n="hero.actionHeading">现在最该做什么</p>
-            <span class="status-chip" data-action-status>准备中</span>
-          </div>
-          <p class="action-date" data-action-date>9 月 14 日 9:00 第一次注册开始</p>
-          <h2 data-action-title>先做一份“想选 + 备选”清单</h2>
-          <p data-action-copy>
-            先查课程说明和时间冲突，再用分享者的真实体验判断课程负担。不要等注册窗口打开才开始找课。
-          </p>
-          <a class="panel-link" href="#registration" data-i18n="hero.actionLink">查看注册动作</a>
-        </aside>
-      </section>
-
-      <section class="presenters shell" id="guides" data-chapter="Guides" aria-labelledby="presenters-title">
-        <div class="section-intro compact-intro">
-          <p class="context-line" data-i18n="presenters.context">分享者</p>
-          <h2 id="presenters-title" data-i18n="presenters.title">不同路径，不同课程视角</h2>
-          <p class="presenter-intro" data-i18n="presenters.intro">每一张卡片都从课程视角和个人入口出发：先看关注点，再打开相关课程日志，或通过社媒联系分享者。</p>
-        </div>
-        <div class="presenter-grid">
-          <article id="reviewer-richard" tabindex="-1" class="presenter-card presenter-richard" data-reveal="pending">
-            <div class="presenter-portrait-frame">
-              <img
-                src="assets/richard-portrait-web.jpg"
-                alt="Richard 的照片"
-                data-i18n-attr="alt:presenters.richardAlt"
-                width="360"
-                height="360"
-              />
-              <span class="portrait-route" aria-hidden="true">02</span>
-            </div>
-            <div class="presenter-content">
-              <div class="presenter-meta">
-                <span class="presenter-badge" data-i18n="presenters.contributorBadge">课程分享者</span>
-                <span class="presenter-route-label">RESEARCHER</span>
-              </div>
-              <h3 data-i18n="presenters.richardName">Richard</h3>
-              <p class="presenter-role" data-i18n="presenters.richardRole">SILS 25Fall</p>
-              <p class="presenter-focus" data-i18n="presenters.richardFocus">人文历史方向，跨学科课程体验</p>
-              <div class="presenter-tags" aria-label="Richard 关注的课程主题" data-i18n-attr="aria-label:presenters.richardTagsAria">
-                <span data-i18n="presenters.richardTags.0">人文 / 历史</span>
-                <span data-i18n="presenters.richardTags.1">跨学科</span>
-                <span data-i18n="presenters.richardTags.2">课堂体验</span>
-              </div>
-              <div class="presenter-contacts" aria-label="Richard 的联系方式" data-i18n-attr="aria-label:contact.richardAria">
-                <button class="contact-link contact-wechat" type="button" data-copy-wechat-inline data-wechat-id="KatsuragiZakura" aria-label="复制 Richard 的微信号" data-i18n-attr="aria-label:contact.richardWechatAria">
-                  <span class="contact-icon" aria-hidden="true">W</span>
-                  <span class="contact-link-copy"><strong data-copy-label data-i18n="contact.copy" aria-live="polite">复制微信号</strong><small>KatsuragiZakura</small></span>
-                </button>
-                <a class="contact-link" href="https://www.instagram.com/katsuragizakura/" target="_blank" rel="noreferrer" aria-label="Instagram: katsuragizakura">
-                  <span class="contact-icon" aria-hidden="true">◎</span>
-                  <span class="contact-link-copy"><strong>Instagram</strong><small>katsuragizakura</small></span>
-                </a>
-              </div>
-              <button class="presenter-action" type="button" data-presenter-filter="Richard">
-                <span data-i18n="presenters.viewLogs">查看课程日志</span><span aria-hidden="true">↗</span>
-              </button>
-            </div>
-          </article>
-          <article id="reviewer-chambers" tabindex="-1" class="presenter-card presenter-chambers presenter-author" data-reveal="pending">
-            <div class="presenter-portrait-frame">
-              <img
-                src="assets/chambers-portrait-web.jpg"
-                alt="Chambers 的照片"
-                data-i18n-attr="alt:presenters.chambersAlt"
-                width="360"
-                height="360"
-              />
-              <span class="portrait-route" aria-hidden="true">01</span>
-            </div>
-            <div class="presenter-content">
-              <div class="presenter-meta">
-                <span class="presenter-badge presenter-badge-author" data-i18n="presenters.authorBadge">网站作者</span>
-                <span class="presenter-route-label">BUILDER</span>
-              </div>
-              <h3 data-i18n="presenters.chambersName">Chambers</h3>
-              <p class="presenter-role" data-i18n="presenters.chambersRole">SILS 26Spring</p>
-              <p class="presenter-focus" data-i18n="presenters.chambersFocus">商业、经济课程，小组合作与选课工具</p>
-              <div class="presenter-tags" aria-label="Chambers 关注的课程主题" data-i18n-attr="aria-label:presenters.chambersTagsAria">
-                <span data-i18n="presenters.chambersTags.0">商业 / 经济</span>
-                <span data-i18n="presenters.chambersTags.1">小组合作</span>
-                <span data-i18n="presenters.chambersTags.2">选课工具</span>
-              </div>
-              <div class="presenter-contacts" aria-label="Chambers 的联系方式" data-i18n-attr="aria-label:contact.chambersAria">
-                <button class="contact-link contact-wechat" type="button" data-copy-wechat-inline data-wechat-id="Chambers0603" aria-label="复制 Chambers 的微信号" data-i18n-attr="aria-label:contact.chambersWechatAria">
-                  <span class="contact-icon" aria-hidden="true">W</span>
-                  <span class="contact-link-copy"><strong data-copy-label data-i18n="contact.copy" aria-live="polite">复制微信号</strong><small>Chambers0603</small></span>
-                </button>
-                <a class="contact-link" href="https://www.instagram.com/chambers_s_s/" target="_blank" rel="noreferrer" aria-label="Instagram: chambers_s_s">
-                  <span class="contact-icon" aria-hidden="true">◎</span>
-                  <span class="contact-link-copy"><strong>Instagram</strong><small>chambers_s_s</small></span>
-                </a>
-                <a class="contact-link" href="https://www.xiaohongshu.com/search_result?keyword=Chambers%E5%9C%A8%E4%B8%9C%E4%BA%AC" target="_blank" rel="noreferrer" aria-label="Chambers 的小红书主页" data-i18n-attr="aria-label:contact.chambersXhsAria">
-                  <span class="contact-icon" aria-hidden="true">X</span>
-                  <span class="contact-link-copy"><strong data-i18n="contact.xiaohongshu">小红书</strong><small data-i18n="contact.chambersXhs">Chambers在东京</small></span>
-                </a>
-              </div>
-              <button class="presenter-action" type="button" data-presenter-filter="Chambers">
-                <span data-i18n="presenters.viewLogs">查看课程日志</span><span aria-hidden="true">↗</span>
-              </button>
-            </div>
-          </article>
-          <article id="reviewer-cindy" tabindex="-1" class="presenter-card presenter-cindy" data-reveal="pending">
-            <div class="presenter-portrait-frame">
-              <img
-                src="assets/cindy-portrait-web.png"
-                alt="Cindy 的照片"
-                data-i18n-attr="alt:presenters.authorAlt"
-                width="1456"
-                height="1080"
-              />
-              <span class="portrait-route" aria-hidden="true">03</span>
-            </div>
-            <div class="presenter-content">
-              <div class="presenter-meta">
-                <span class="presenter-badge" data-i18n="presenters.contributorBadge">课程分享者</span>
-                <span class="presenter-route-label">YAPPER</span>
-              </div>
-              <h3 data-i18n="presenters.authorName">Cindy</h3>
-              <p class="presenter-role" data-i18n="presenters.authorRole">SILS 26Spring</p>
-              <p class="presenter-focus" data-i18n="presenters.authorFocus">商科、国际关系课程；人际交往、环境适应能力</p>
-              <div class="presenter-tags" aria-label="Cindy 的工作方向" data-i18n-attr="aria-label:presenters.authorTagsAria">
-                <span data-i18n="presenters.authorTags.0">商科 / 国际关系</span>
-                <span data-i18n="presenters.authorTags.1">人际交往</span>
-                <span data-i18n="presenters.authorTags.2">环境适应</span>
-              </div>
-              <div class="presenter-contacts" aria-label="Cindy 的联系方式" data-i18n-attr="aria-label:contact.cindyAria">
-                <button class="contact-link contact-wechat" type="button" data-copy-wechat-inline data-wechat-id="im_Cccccindyyyyy" aria-label="复制 Cindy 的微信号" data-i18n-attr="aria-label:contact.cindyWechatAria">
-                  <span class="contact-icon" aria-hidden="true">W</span>
-                  <span class="contact-link-copy"><strong data-copy-label data-i18n="contact.copy" aria-live="polite">复制微信号</strong><small>im_Cccccindyyyyy</small></span>
-                </button>
-                <a class="contact-link" href="https://www.instagram.com/im_ccccindyyyyyyy/" target="_blank" rel="noreferrer" aria-label="Instagram: im_ccccindyyyyyyy">
-                  <span class="contact-icon" aria-hidden="true">◎</span>
-                  <span class="contact-link-copy"><strong>Instagram</strong><small>im_ccccindyyyyyyy</small></span>
-                </a>
-              </div>
-              <button class="presenter-action" type="button" data-presenter-filter="Cindy">
-                <span data-i18n="presenters.viewLogs">查看课程日志</span><span aria-hidden="true">↗</span>
-              </button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="requirements section-pad shell" id="requirements" data-chapter="Navigation Chart">
-        <div class="requirements-stamp" aria-label="毕业总学分 124" data-i18n-attr="aria-label:requirements.stampAria">
-          <strong>124</strong>
-          <span data-i18n="requirements.stampLabel">毕业总学分</span>
-        </div>
-        <div class="requirements-copy">
-          <div class="section-intro compact-intro">
-            <p class="context-line chapter-marker" data-i18n-html="chapters.navigation"><span aria-hidden="true">✦</span> Navigation Chart<span class="chapter-caption">SP2 官方要求摘要</span></p>
-            <h2 data-i18n="requirements.title">先守住毕业结构，再谈自由探索</h2>
-          </div>
-          <div class="credit-grid" aria-label="SP2 毕业学分构成" data-i18n-attr="aria-label:requirements.creditAria">
-            <div><strong>31</strong><span data-i18n="requirements.credits.0">语言</span></div>
-            <div><strong>2</strong><span data-i18n="requirements.credits.1">统计</span></div>
-            <div><strong>2</strong><span data-i18n="requirements.credits.2">数据科学</span></div>
-            <div><strong>16</strong><span data-i18n="requirements.credits.3">研讨课</span></div>
-            <div><strong>40</strong><span data-i18n="requirements.credits.4">讲授课</span></div>
-            <div><strong>33</strong><span data-i18n="requirements.credits.5">选修课</span></div>
-          </div>
-          <div class="requirements-notes">
-            <p data-i18n="requirements.notes.0">Introductory Courses 至少覆盖 3 个 clusters。</p>
-            <p data-i18n="requirements.notes.1">2025 年及以后入学者必须修读 Introductory Data Science。</p>
-            <p data-i18n="requirements.notes.2">第一、第二学期标准注册上限为每学期 21 学分。</p>
-          </div>
-          <a
-            class="text-link"
-            href="https://www.waseda.jp/fire/sils/en/about/curriculum/"
-            target="_blank"
-            rel="noreferrer"
-          ><span data-i18n="requirements.link">查看 SILS 官方 Curriculum</span></a>
-          <p class="fine-print" data-i18n="requirements.finePrint">此处按 SP2 摘要呈现。SP1 学生和特殊情况请以个人 Guidebook 与 SILS Office 说明为准。</p>
-        </div>
-      </section>
-
-      <section class="course-explorer section-pad shell" id="courses" data-chapter="Explore the Ports">
-        <div class="section-intro split-intro">
-          <div>
-              <p class="context-line chapter-marker" data-i18n-html="chapters.explore"><span aria-hidden="true">✦</span> Explore the Ports<span class="chapter-caption">课程浏览</span></p>
-              <h2 data-i18n="explorer.title">按你的需求，找一门更合适的课</h2>
-          </div>
-          <p data-i18n="explorer.copy">以下保留不同分享者的修课原话。同一门课可能有多个人的评价，点击课程里的 reviewer tab 可以切换查看。评价来自特定学期，老师、考核和课堂安排可能变化，请核对当学期 Syllabus。小组标记沿用原表：N 没有、Y 有、YYY 很多；混合标记请分课程看。</p>
-        </div>
-
-        <div class="question-shortcuts" aria-label="常见问题快捷筛选" data-i18n-attr="aria-label:explorer.shortcutsAria">
-          <button type="button" data-filter-preset="lighter"><span data-i18n="explorer.shortcuts.0">想先轻松一点</span></button>
-          <button type="button" data-filter-preset="group"><span data-i18n="explorer.shortcuts.1">想做小组项目</span></button>
-          <button type="button" data-filter-preset="japanese"><span data-i18n="explorer.shortcuts.2">想认真学日语</span></button>
-          <button type="button" data-filter-preset="business"><span data-i18n="explorer.shortcuts.3">想看商业经济</span></button>
-          <button type="button" data-filter-preset="heavy"><span data-i18n="explorer.shortcuts.4">先看看高强度课</span></button>
-        </div>
-
-        <div class="reviewer-legend" role="note">
-          <span class="reviewer-legend-mark" aria-hidden="true">✦</span>
-          <p data-i18n-html="explorer.reviewerLegend"><strong>Cindy 的新评价</strong> 已放进对应课程；看到橙色星标 tab，点一下就能切换查看。</p>
-        </div>
-
-        <form class="filters" data-filter-form>
-          <label class="search-field">
-            <span data-i18n="explorer.filters.search">搜索课程</span>
-            <input type="search" name="query" placeholder="输入课程名、主题或体验关键词" data-i18n-attr="placeholder:explorer.filters.searchPlaceholder" autocomplete="off" />
-          </label>
-          <label>
-            <span data-i18n="explorer.filters.takenBy">分享者</span>
-            <select name="takenBy">
-              <option value="all" data-i18n="explorer.filters.all">全部</option>
-              <option value="Chambers">Chambers</option>
-              <option value="Richard">Richard</option>
-              <option value="Cindy">Cindy</option>
-            </select>
-          </label>
-          <label>
-            <span data-i18n="explorer.filters.provider">开课单位</span>
-            <select name="provider">
-              <option value="all" data-i18n="explorer.filters.all">全部</option>
-              <option value="SILS">SILS</option>
-              <option value="CJL">CJL</option>
-            </select>
-          </label>
-          <label>
-            <span data-i18n="explorer.filters.language">语言</span>
-            <select name="language">
-              <option value="all" data-i18n="explorer.filters.all">全部</option>
-              <option value="English" data-i18n="explorer.filters.english">英语</option>
-              <option value="Japanese" data-i18n="explorer.filters.japanese">日语</option>
-            </select>
-          </label>
-          <label>
-            <span data-i18n="explorer.filters.workload">课程负担</span>
-            <select name="workload">
-              <option value="all" data-i18n="explorer.filters.all">全部</option>
-              <option value="1-2" data-i18n="explorer.filters.workload12">1 至 2</option>
-              <option value="3" data-i18n="explorer.filters.workload3">3</option>
-              <option value="4-5" data-i18n="explorer.filters.workload45">4 至 5</option>
-            </select>
-          </label>
-          <label>
-            <span data-i18n="explorer.filters.groupWork">小组合作</span>
-            <select name="groupWork">
-              <option value="all" data-i18n="explorer.filters.all">全部</option>
-              <option value="none" data-i18n="explorer.filters.groupNone">没有</option>
-              <option value="any" data-i18n="explorer.filters.groupAny">有或很多</option>
-              <option value="some" data-i18n="explorer.filters.groupSome">有</option>
-              <option value="heavy" data-i18n="explorer.filters.groupHeavy">很多</option>
-            </select>
-          </label>
-          <button class="reset-button" type="reset" data-i18n="explorer.filters.reset">清除筛选</button>
-        </form>
-
-        <div class="results-meta">
-          <p aria-live="polite" data-results-count></p>
-          <button class="density-toggle" type="button" data-density-toggle aria-pressed="false" data-i18n="explorer.density.full">切换紧凑视图</button>
-        </div>
-        <div class="course-grid" data-course-grid></div>
-        <div class="empty-state" data-empty-state hidden>
-          <h3 data-i18n="explorer.empty.title">没有匹配的课程</h3>
-          <p data-i18n="explorer.empty.copy">试试放宽课程负担范围，或清除一项筛选。</p>
-          <button class="button button-primary" type="button" data-reset-empty data-i18n="explorer.filters.reset">清除筛选</button>
-        </div>
-      </section>
-
-      <section class="predeparture section-pad shell" id="before-register" data-chapter="Pre-departure Check">
-        <div class="section-intro">
-          <p class="context-line chapter-marker" data-i18n-html="chapters.predeparture"><span aria-hidden="true">✦</span> Pre-departure Check</p>
-          <h2 data-i18n="predeparture.title">Before You Register</h2>
-          <p data-i18n="predeparture.copy">选课之前，给自己留 45 秒。不是再看一次课程介绍，而是看看这个组合适不适合你。</p>
-        </div>
-        <details class="departure-checks">
-          <summary><span data-i18n="predeparture.summary">展开四项注册前检查</span><span class="check-summary-hint" data-i18n="predeparture.summaryHint">负担 / 考核 / 日语 / 合作</span><span class="expand-mark" aria-hidden="true">+</span></summary>
-          <div class="check-grid">
-            <article>
-              <h3>Workload Check</h3>
-              <p class="check-question" data-i18n="predeparture.checks.workload.question">这学期的组合是否过重？</p>
-              <p data-i18n="predeparture.checks.workload.copy">把高负担课程放在一起看：最忙的一周，还剩多少时间给日语和课外生活？</p>
-              <button class="inline-action" type="button" data-filter-preset="heavy"><span data-i18n="predeparture.checks.workload.action">对照高负担课程</span></button>
-            </article>
-            <article>
-              <h3>Assessment Check</h3>
-              <p class="check-question" data-i18n="predeparture.checks.assessment.question">考试、论文和 presentation 是否适合你？</p>
-              <p data-i18n="predeparture.checks.assessment.copy">看详情里的 Assessment，再用当学期 Syllabus 核对比例和 deadline。</p>
-              <button class="inline-action" type="button" data-assessment-search><span data-i18n="predeparture.checks.assessment.action">搜索考核关键词</span></button>
-            </article>
-            <article>
-              <h3>Japanese Level Check</h3>
-              <p class="check-question" data-i18n="predeparture.checks.japanese.question">语言要求是否与实际水平匹配？</p>
-              <p data-i18n="predeparture.checks.japanese.copy">等级之外，也看看阅读、作业和课堂讨论的要求；学长体验不是分班建议。</p>
-              <button class="inline-action" type="button" data-filter-preset="japanese"><span data-i18n="predeparture.checks.japanese.action">对照日语课体验</span></button>
-            </article>
-            <article>
-              <h3>Teacher &amp; Teamwork Check</h3>
-              <p class="check-question" data-i18n="predeparture.checks.teacher.question">老师风格和小组合作是否符合预期？</p>
-              <p data-i18n="predeparture.checks.teacher.copy">对照 Group Work、适合谁与不适合谁；不要只看一句结论。</p>
-              <button class="inline-action" type="button" data-filter-preset="group"><span data-i18n="predeparture.checks.teacher.action">对照小组课程</span></button>
-            </article>
-          </div>
-          <p class="check-tools" data-i18n-html="predeparture.tools">再交叉查一遍：<a href="https://wasedatime.com/courses/syllabus" target="_blank" rel="noreferrer">WasedaTime</a> · <a href="https://www.wasedule.com/downloads" target="_blank" rel="noreferrer">わせジュール</a>。第三方评价仅供参考，最终回到官方 Syllabus。</p>
-        </details>
-      </section>
-
-      <section class="registration section-pad" id="registration" data-chapter="The Route">
-        <div class="shell">
-          <div class="section-intro split-intro">
-            <div>
-              <p class="context-line chapter-marker" data-i18n-html="chapters.route"><span aria-hidden="true">✦</span> The Route<span class="chapter-caption">2026 秋季，日本时间</span></p>
-              <h2 data-i18n="registration.title">不要背日期，只记住下一步动作</h2>
-            </div>
-            <p data-i18n="registration.copy">时间轴从第一次注册开始。临近操作时，仍请查看学校最新通知。</p>
-          </div>
-          <div class="registration-layout">
-            <article class="registration-current">
-              <p class="context-line" data-i18n="registration.currentLabel">当前动作</p>
-              <span class="status-chip" data-timeline-status>准备中</span>
-              <h3 data-timeline-title>准备第一轮候选与备选</h3>
-              <p data-timeline-copy>把“最想选”和“没选上时怎么办”同时写好，注册时会从容很多。</p>
-            </article>
-            <ol class="timeline" data-timeline-list></ol>
-          </div>
-          <div class="registration-alerts">
-            <p data-i18n-html="registration.alerts.maintenance"><strong>系统维护：</strong>每日日本时间 2:00 至 7:00 无法使用 Web Course Registration。</p>
-            <p data-i18n-html="registration.alerts.deadline"><strong>不要压线：</strong>学校通常不接受逾期注册。系统异常时应在截止前联系 SILS Office 并保留截图。</p>
-            <p data-i18n-html="registration.alerts.drop"><strong>退选限制：</strong>部分付费课程、Academic Writing 和特定开放课程可能不可退选，操作前先看官方说明。</p>
-          </div>
-        </div>
-      </section>
-
-      <section class="resources section-pad shell" id="resources" data-chapter="Ship’s Toolkit">
-        <div class="section-intro split-intro">
-          <div>
-            <p class="context-line chapter-marker" data-i18n-html="chapters.toolkit"><span aria-hidden="true">✦</span> Ship’s Toolkit<span class="chapter-caption">工具入口</span></p>
-            <h2 data-i18n="resources.title">每个工具只解决一个清楚的问题</h2>
-          </div>
-          <p data-i18n="resources.copy">第三方工具适合搜索和整理，最终选课、学分和规则仍以早稻田官方系统为准。</p>
-        </div>
-        <div class="resource-list" data-resource-list></div>
-      </section>
-
-    </main>
-
-    <footer class="site-footer">
-      <div class="shell footer-grid">
-        <div>
-          <strong data-i18n="footer.brand">SILS 选课工作台</strong>
-          <p data-i18n="footer.byline">由 Chambers、Richard 与 Cindy 的个人修课经验整理。</p>
-        </div>
-        <p data-i18n-html="footer.disclaimer">
-          课程与评价可能随学期和教师变化。最终请以 MyWaseda、官方课程说明和 SILS 最新通知为准。<br />
-          页面更新：2026-10-12；课程与注册资料日期保持原样
-        </p>
+      <div class="community-actions">
+        <button class="quiet" type="button" id="language-toggle">English</button>
+        <span id="account-nav"></span>
       </div>
+    </header>
+    <main id="main" class="page shell" tabindex="-1" aria-live="polite"></main>
+    <noscript><p class="shell">请启用 JavaScript 以浏览课程。Enable JavaScript to browse courses. <a href="guide.html">选课指南 / Registration guide</a></p></noscript>
+    <footer>
+      <span>Odyssey · Course Experiences</span>
+      <span id="auth-notice">Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。</span>
     </footer>
+    <div class="toast" role="status" id="toast" hidden></div>
+    <dialog id="login" aria-labelledby="login-title">
+      <button class="close" type="button" data-close-login aria-label="关闭">×</button>
+      <b class="brand-mark login-mark">o.</b>
+      <p class="eyebrow">GOOGLE SIGN-IN</p>
+      <h2 id="login-title">分享你的课程体验</h2>
+      <p id="login-description">浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。</p>
+      <button class="button google" type="button" data-community-signin>使用 Google 继续</button>
+      <p class="small" id="login-privacy">登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。</p>
+    </dialog>
   </body>
 </html>

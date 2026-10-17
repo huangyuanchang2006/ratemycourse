@@ -27,7 +27,7 @@
     } catch (_) {}
     if (returnTarget.startsWith("community#")) {
       const hash = returnTarget.slice("community".length);
-      const destination = new URL("community.html", siteRoot);
+      const destination = new URL("./", siteRoot);
       destination.hash = hash.replace(/^#/, "");
       if (window.location.pathname !== destination.pathname || window.location.hash !== destination.hash) {
         window.location.replace(destination.href);
