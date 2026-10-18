@@ -142,3 +142,8 @@ footer,#auth-notice{font-size:13px;line-height:1.6}
 @media(max-width:780px){.site-header nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 12px;font-size:12px}.site-header nav a{min-height:40px;display:flex;align-items:center;white-space:normal;line-height:1.35}.site-header .community-actions{gap:7px}.site-header .community-actions .button{font-size:11px;padding-inline:9px}.results-meta{scroll-margin-top:20px}}
 .side-card p{font-size:14px;line-height:1.7;color:#574f47}
 .results-meta{scroll-margin-top:24px}
+
+/* Keep navigation available at contributor and course scroll destinations. */
+.site-header{position:sticky;top:0;z-index:10}
+.page,.guide-section,#contributors-wall,.results-meta{scroll-margin-top:calc(var(--site-header-height,90px) + 20px)}
+@media(min-width:1100px){.filters{top:calc(var(--site-header-height,90px) + 24px)}}
