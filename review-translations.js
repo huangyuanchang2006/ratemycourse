@@ -1748,7 +1748,18 @@
     copy.translationStatus = { language: target, translatedFields, originalFields, staleFields, needsOriginalNotice: originalFields.length > 0 };
     return copy;
   }
-  const api = Object.freeze({ displayReview, fingerprint, fields, snapshotDate: "2026-10-18" });
+  function noticeFor(review, language, visibleFields = fields) {
+    const target = language === "zh" ? "zh" : "en";
+    const source = String(review?.content_language || "").trim().toLowerCase().split(/[-_]/)[0];
+    // Same-language reading copies can differ in formatting or include a
+    // translated syllabus excerpt; they do not make the author's review a translation.
+    if (source === target || !review?.translationStatus) return "";
+    const status = review.translationStatus;
+    const visible = new Set(visibleFields);
+    if ([...(status.originalFields || []), ...(status.staleFields || [])].some(field => visible.has(field))) return "pending";
+    return status.translatedFields?.some(field => visible.has(field)) ? "translated" : "";
+  }
+  const api = Object.freeze({ displayReview, noticeFor, fingerprint, fields, snapshotDate: "2026-10-18" });
   root.SILS_REVIEW_TRANSLATIONS = api;
   if (typeof module === "object" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -95,7 +95,7 @@
     if (error) throw error;
     courseAliases = new Map((data || []).filter(course => course.canonical_course_id).map(course => [course.id, course.canonical_course_id]));
     courses = (data || []).filter(course => !course.canonical_course_id);
-    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,public_display_name,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en").eq("status", "published").not("course_id", "is", null);
+    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,content_language,public_display_name,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en").eq("status", "published").not("course_id", "is", null);
     if (reviewError) throw reviewError;
     publishedReviews = reviewData || [];
     catalogLoadedAt = Date.now();
@@ -138,13 +138,12 @@
     return window.SILS_REVIEW_TRANSLATIONS?.displayReview(review, language) || review;
   }
 
-  function translationNotice(review) {
-    const status = review.translationStatus;
-    if (!status) return "";
-    const missing = status.originalFields?.length || status.staleFields?.length;
-    return `<p class="translation-note">${missing
+  function translationNotice(review, visibleFields) {
+    const notice = window.SILS_REVIEW_TRANSLATIONS?.noticeFor(review, language, visibleFields);
+    if (!notice) return "";
+    return `<p class="translation-note">${notice === "pending"
       ? (language === "zh" ? "部分内容保留作者原文；译文尚待更新。" : "Some content is shown in its original language; translation is pending.")
-      : status.translatedFields?.length ? (language === "zh" ? "译文 · 保留作者原意" : "Translated from the contributor’s original") : ""}</p>`;
+      : (language === "zh" ? "译文 · 保留作者原意" : "Translated from the contributor’s original")}</p>`;
   }
 
   const teachingLanguage = value => language === "zh" ? ({ English: "英语", Japanese: "日语", Chinese: "中文", Other: "其他" }[value] || value) : value;
@@ -163,8 +162,9 @@
       <div class="chips"><span class="pill">${escapeHtml(course.provider || "RateMyCourse")}</span>${course.language ? `<span class="pill">${escapeHtml(teachingLanguage(course.language))}</span>` : ""}</div>
       <h3><a href="./#/course/${encodeURIComponent(course.id)}">${escapeHtml(course.title)}</a></h3>
       <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${language === "zh" ? "学分" : course.credits === 1 ? "credit" : "credits"} · ${totalReviews}${language === "zh" ? " 条公开体验" : totalReviews === 1 ? " experience" : " experiences"}</p>
-      ${review ? `<p class="perspective-note small">${language === "zh" ? "一位作者的视角" : "ONE CONTRIBUTOR’S PERSPECTIVE"} · ${escapeHtml(review.public_display_name || t("anonymous"))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</p>
-      ${translationNotice(review)}
+      ${review ? `<p class="perspective-note small">${language === "zh" ? "体验作者：" : "Review by: "}${escapeHtml(review.public_display_name || t("anonymous"))}</p>
+      ${review.teacher ? `<p class="small review-instructor">${language === "zh" ? "授课教师：" : "Instructor: "}${escapeHtml(review.teacher)}</p>` : ""}
+      ${translationNotice(review, ["fit", "avoid"])}
       <dl class="audience-notes">${[["fit", review.fit], ["avoid", review.avoid]].filter(([, value]) => value).map(([key, value]) => `<div><dt>${escapeHtml(t(key))}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>
       <div class="card-measures"><div><p class="measure-label">${escapeHtml(t("workload"))}</p><span class="workload-score"><strong>${review.workload}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[review.workload - 1])}</small></span><p class="small">1 = ${escapeHtml(t("workloadNames")[0])} · 5 = ${escapeHtml(t("workloadNames")[4])}</p></div><div><p class="measure-label">${escapeHtml(t("group"))}</p><p>${escapeHtml(t("groupChoices")[model.groups.indexOf(review.group_work)])}</p></div></div>` : ""}
       ${hasReviewFilters ? `<p class="small">${reviews.length} ${language === "zh" ? "条体验同时符合全部体验筛选条件" : reviews.length === 1 ? "experience matches all filters" : "experiences match all filters"}</p>` : ""}
@@ -214,7 +214,7 @@
     const name = review.public_display_name || t("anonymous");
     const avatarMarkup = avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
     const profileLink = review.public_profile_id ? `<a class="text-link" href="./#/people/${encodeURIComponent(review.public_profile_id)}">${escapeHtml(t("openProfile"))} ↗</a>` : "";
-    return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${escapeHtml(name)}</strong><small>${escapeHtml(reviewTerm(review))}${review.teacher ? ` · ${escapeHtml(review.teacher)}` : ""}</small></div>${profileLink}</div>`;
+    return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${language === "zh" ? "体验作者：" : "Review by: "}${escapeHtml(name)}</strong><small>${escapeHtml(reviewTerm(review))}</small></div>${profileLink}</div>`;
   }
 
   async function reviewCard(review) {
@@ -228,6 +228,7 @@
     ].filter(([, value]) => value);
     return `<article class="experience">
       <div class="review-top"><div>${identity(review, avatar)}${review.legacy_source_id ? "" : `<small>${escapeHtml(shortDate(review.created_at))}</small>`}</div><span class="pill green">${review.legacy_source_id ? (language === "zh" ? "历史导入" : "Archive") : escapeHtml(t("approved"))}</span></div>
+      ${review.teacher ? `<p class="small review-instructor">${language === "zh" ? "授课教师（作者记录）：" : "Instructor (reported by this author): "}${escapeHtml(review.teacher)}</p>` : ""}
 
       ${review.share_background && contextFields.length ? `<section class="context"><div class="context-label">${language === "zh" ? "作者自述背景" : "AUTHOR-REPORTED BACKGROUND"}<span>${escapeHtml(t("contextAuthor"))}</span></div><dl class="context-grid">${contextFields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></section>` : ""}
       <div class="review-measures"><p><span class="measure-label">${escapeHtml(t("workload"))}</span><span class="workload-score"><strong>${Number(review.workload) || "—"}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[(Number(review.workload) || 1) - 1])}</small></span></p><p><span class="measure-label">${escapeHtml(t("group"))}</span><strong>${escapeHtml(t("groupChoices")[({ none: 0, some: 1, heavy: 2, mixed: 3 })[review.group_work] ?? 3])}</strong></p></div>
