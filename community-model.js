@@ -7,6 +7,7 @@
 
   const providers = ["SILS", "PSE", "JCulP", "CJL"];
   const groups = ["none", "some", "heavy", "mixed"];
+  const contentLanguages = ["zh", "en", "ja", "mixed", "other"];
   const terms = [
     { value: "Spring 2026", zh: "2026 年春季", en: "Spring 2026" },
     { value: "Fall 2026", zh: "2026 年秋季", en: "Fall 2026" },
@@ -37,6 +38,7 @@
     const showProfile = enabled(values.show_profile);
     const shareBackground = enabled(values.share_background);
     if (!userId) reject("loginRequired");
+    if (!contentLanguages.includes(values.content_language)) reject("invalidContentLanguage");
     if (showName && !text(profile?.display_name)) reject("ownProfile");
     if (showAvatar && !profile?.avatar_path) reject("profilePhoto");
     if (showProfile && !profile?.is_public) reject("publicProfileNeeded");
@@ -61,7 +63,7 @@
       avoid: optional(values.avoid),
       experience: text(values.experience),
       notes: optional(values.notes),
-      content_language: language,
+      content_language: values.content_language,
       reviewer_programme: shareBackground ? optional(values.reviewer_programme) : null,
       reviewer_year: shareBackground ? optional(values.reviewer_year) : null,
       reviewer_prior_knowledge: shareBackground ? optional(values.reviewer_prior_knowledge) : null,
@@ -80,12 +82,13 @@
   function filterCatalog(courses, reviews, filters) {
     const searchableText = value => text(value).normalize("NFKC").toLocaleLowerCase().replace(/\s+/gu, "");
     const includes = (value, needle) => searchableText(value).includes(searchableText(needle));
-    const hasReviewFilters = Boolean(filters.workload || filters.group || text(filters.fit) || text(filters.avoid) || filters.author);
+    const authorIds = Array.isArray(filters.authorReviewIds) ? new Set(filters.authorReviewIds) : null;
+    const hasReviewFilters = Boolean(filters.workload || filters.group || text(filters.fit) || text(filters.avoid) || filters.author || authorIds);
     return courses.flatMap((course) => {
       if ((filters.provider && course.provider !== filters.provider) || (filters.language && course.language !== filters.language)) return [];
       const all = reviews.filter((review) => review.course_id === course.id);
       const matching = all.filter((review) =>
-        (!filters.author || review.public_display_name === filters.author) &&
+        (authorIds ? authorIds.has(review.id) : !filters.author || review.public_display_name === filters.author) &&
         (!filters.workload || (filters.workload === "light" ? review.workload <= 2 : filters.workload === "heavy" ? review.workload >= 4 : Number(review.workload) === Number(filters.workload))) &&
         (!filters.group || review.group_work === filters.group) && includes(review.fit, filters.fit) && includes(review.avoid, filters.avoid)
       );
@@ -97,5 +100,5 @@
     });
   }
 
-  return { providers, groups, terms, normalizeTerm, termLabel, reviewPayload, filterCatalog, syllabusUrls };
+  return { providers, groups, contentLanguages, terms, normalizeTerm, termLabel, reviewPayload, filterCatalog, syllabusUrls };
 });

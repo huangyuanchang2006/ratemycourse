@@ -18,4 +18,5 @@
     render();
   });
   render();
+  window.SILS_ANALYTICS?.page({ page: "guide" });
 })();

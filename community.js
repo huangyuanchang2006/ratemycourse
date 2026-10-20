@@ -48,6 +48,15 @@
   let authorFilter = "";
   let cleanupWall;
   let wallLanguage = "";
+  let wallData = { people: [], replaced_legacy_keys: ["chambers", "cindy", "richard"] };
+  let wallLoadedAt = 0;
+  let wallRequest = 0;
+  let mountedWallData = "";
+  let metricsAdmin = false;
+  let metricsAccountId;
+  const sourceLanguages = { zh: { zh: "中文", en: "英语", ja: "日语", mixed: "多种语言", other: "其他语言" }, en: { zh: "Chinese", en: "English", ja: "Japanese", mixed: "Multiple languages", other: "Another language" } };
+  Object.assign(copy.zh, { invalidContentLanguage: "请选择评价原文使用的语言。", wallNameRequired: "加入名片墙前，请填写公开显示名。" });
+  Object.assign(copy.en, { invalidContentLanguage: "Choose the original language of your review.", wallNameRequired: "Add a public display name before joining the contributor wall." });
   let loginTarget = "";
 
   const t = (key) => copy[language][key === "published" ? "approved" : key];
@@ -95,10 +104,62 @@
     if (error) throw error;
     courseAliases = new Map((data || []).filter(course => course.canonical_course_id).map(course => [course.id, course.canonical_course_id]));
     courses = (data || []).filter(course => !course.canonical_course_id);
-    const { data: reviewData, error: reviewError } = await db.from("reviews").select("course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,content_language,public_display_name,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en").eq("status", "published").not("course_id", "is", null);
+    const { data: reviewData, error: reviewError } = await db.from("reviews").select("id,course_id,workload,group_work,fit,avoid,experience,assessment,teacher,notes,term,content_language,public_display_name,public_profile_id,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en").eq("status", "published").not("course_id", "is", null);
     if (reviewError) throw reviewError;
     publishedReviews = reviewData || [];
     catalogLoadedAt = Date.now();
+  }
+
+  async function loadContributors(force = false) {
+    if (!force && wallLoadedAt && Date.now() - wallLoadedAt < 60000) return;
+    const request = ++wallRequest;
+    try {
+      const { data, error } = await db.rpc("get_contributor_wall");
+      if (error) throw error;
+      const people = await Promise.all((data?.people || []).map(async person => ({ ...person, avatar_url: await signedAvatar(person.avatar_path) })));
+      if (request !== wallRequest) return;
+      wallData = { people, replaced_legacy_keys: data?.replaced_legacy_keys || [], legacy_review_ids: data?.legacy_review_ids || {} };
+      wallLoadedAt = Date.now();
+    } catch (error) {
+      if (request !== wallRequest) return;
+      // Fail closed: never revive an opted-out historical card after a failed read.
+      wallData = { people: [], replaced_legacy_keys: ["chambers", "cindy", "richard"] };
+      wallLoadedAt = 0;
+    }
+  }
+
+  function selectedAuthor() {
+    if (authorFilter.startsWith("legacy:")) {
+      const key = authorFilter.slice(7);
+      return { author: "", authorReviewIds: wallData.legacy_review_ids?.[key] || [], label: ({ richard: "Richard", chambers: "Chambers", cindy: "Cindy" })[key] || (language === "zh" ? "历史作者" : "Historical contributor") };
+    }
+    if (!authorFilter.startsWith("profile:")) return { author: authorFilter, label: authorFilter };
+    const id = authorFilter.slice(8);
+    const person = wallData.people.find(person => person.id === id);
+    return { author: "", authorReviewIds: person?.review_ids || publishedReviews.filter(review => review.public_profile_id === id).map(review => review.id), label: person?.display_name || (language === "zh" ? "已关联名片的体验" : "Profile-linked experiences") };
+  }
+
+  function authorChoices() {
+    const choices = wallData.people.filter(person => person.review_ids?.length).map(person => ({ value: `profile:${person.id}`, label: person.display_name, ids: new Set(person.review_ids) }));
+    for (const person of window.SILS_NAMECARD_WALL?.buildPeople(wallData, language) || []) {
+      if (!person.profileId && person.reviewIds?.length) choices.push({ value: person.wallKey, label: person.name, ids: new Set(person.reviewIds) });
+    }
+    for (const name of [...new Set(publishedReviews.map(review => review.public_display_name).filter(Boolean))].sort()) {
+      const rows = publishedReviews.filter(review => review.public_display_name === name);
+      if (!choices.some(choice => rows.every(review => choice.ids.has(review.id)))) choices.push({ value: name, label: name });
+    }
+    return choices;
+  }
+
+  function loadMetricsRole() {
+    const id = session?.user.id || "";
+    if (metricsAccountId === id) return;
+    metricsAccountId = id; metricsAdmin = false;
+    if (id && db?.rpc) db.rpc("site_metrics_admin_status").then(({ data, error }) => {
+      if (metricsAccountId !== id) return;
+      metricsAdmin = !error && data === true;
+      renderHeader();
+    }).catch(() => {});
   }
 
   function renderHeader() {
@@ -125,7 +186,7 @@
     document.title = language === "zh" ? "RateMyCourse · 找到适合你的课程" : "RateMyCourse · Find the courses that fit you";
     const slot = $("#account-nav");
     slot.innerHTML = session
-      ? `<button class="quiet" type="button" data-auth-signout>${language === "zh" ? "退出" : "Sign out"}</button>`
+      ? `${metricsAdmin ? `<a class="text-link" href="analytics.html">${language === "zh" ? "数据概览" : "Analytics"}</a>` : ""}<button class="quiet" type="button" data-auth-signout>${language === "zh" ? "退出" : "Sign out"}</button>`
       : `<button class="button secondary compact" type="button" data-community-signin>${escapeHtml(t("signIn"))}</button>`;
   }
 
@@ -173,7 +234,8 @@
   }
 
   function renderBrowse() {
-    const filtered = model.filterCatalog(courses, publishedReviews.map(displayReview), { query, provider: providerFilter, language: languageFilter, workload: workloadFilter, group: groupFilter, fit: fitFilter, avoid: avoidFilter, author: authorFilter });
+    const author = selectedAuthor();
+    const filtered = model.filterCatalog(courses, publishedReviews.map(displayReview), { query, provider: providerFilter, language: languageFilter, workload: workloadFilter, group: groupFilter, fit: fitFilter, avoid: avoidFilter, ...author });
     const option = (value, label, selected) => `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
     main.innerHTML = `<section class="hero">
       <div><p class="eyebrow">${language === "zh" ? "早稻田大学" : "WASEDA UNIVERSITY"}</p><h1>${language === "zh" ? "找到适合你的课程。" : "Find the courses that fit you."}</h1>
@@ -187,9 +249,9 @@
       <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select id="language-filter" name="language">${option("", language === "zh" ? "全部语言" : "All languages", languageFilter)}${[...new Set(courses.map((course) => course.language).filter(Boolean))].sort().map((item) => option(item, teachingLanguage(item), languageFilter)).join("")}</select></div>
       <div class="filter"><label for="workload-filter">${escapeHtml(t("workload"))} · 1–5</label><select id="workload-filter" name="workload">${option("", language === "zh" ? "全部负担" : "Any workload", workloadFilter)}${option("light", `1–2 · ${language === "zh" ? "较轻" : "Lighter"}`, workloadFilter)}${option("3", `3 · ${t("workloadNames")[2]}`, workloadFilter)}${option("heavy", `4–5 · ${language === "zh" ? "较重" : "Heavier"}`, workloadFilter)}</select><p class="hint">1 = ${t("workloadNames")[0]} · 5 = ${t("workloadNames")[4]}</p></div>
       <div class="filter"><label for="group-filter">${escapeHtml(t("group"))}</label><select id="group-filter" name="group">${option("", language === "zh" ? "全部合作方式" : "Any group work", groupFilter)}${model.groups.map((key, index) => option(key, t("groupChoices")[index], groupFilter)).join("")}</select></div>
-      <div class="filter"><label for="author-filter">${language === "zh" ? "体验作者" : "Contributor"}</label><select id="author-filter" name="author">${option("", language === "zh" ? "全部作者" : "All contributors", authorFilter)}${[...new Set(publishedReviews.map(review => review.public_display_name).filter(Boolean))].sort().map(name => option(name, name, authorFilter)).join("")}</select></div>
+      <div class="filter"><label for="author-filter">${language === "zh" ? "体验作者" : "Contributor"}</label><select id="author-filter" name="author">${option("", language === "zh" ? "全部作者" : "All contributors", authorFilter)}${authorChoices().map(person => option(person.value, person.label, authorFilter)).join("")}</select></div>
       <details class="audience-filter" ${fitFilter || avoidFilter ? "open" : ""}><summary>${language === "zh" ? "更多筛选：适合／不适合" : "More filters: fit and avoid"}</summary><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${language === "zh" ? "按当前显示语言匹配。同一条体验须同时满足各项条件。" : "Matches the displayed language. All conditions must match the same experience."}</p><button class="button secondary" type="submit">${language === "zh" ? "应用筛选" : "Apply filters"}</button></details>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "quiet filter-reset")}
-    </form><section><p class="results-meta"><span>${filtered.length} / ${courses.length}${authorFilter ? ` · ${escapeHtml(authorFilter)}` : ""}</span><span>${language === "zh" ? "条课程记录 · 每位作者的体验分别呈现。" : "catalog records · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
+    </form><section><p class="results-meta"><span>${filtered.length} / ${courses.length}${authorFilter ? ` · ${escapeHtml(author.label)}` : ""}</span><span>${language === "zh" ? "条课程记录 · 每位作者的体验分别呈现。" : "catalog records · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2>${button("clear-filters", language === "zh" ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
     if (!hasEnteredBrowse) {
       hasEnteredBrowse = true;
       main.classList.add("is-entering");
@@ -208,6 +270,18 @@
     fitFilter = String(values.get("fit") || "").trim();
     avoidFilter = String(values.get("avoid") || "").trim();
     authorFilter = String(values.get("author") || "");
+    syncAuthorRoute();
+  }
+
+  function syncAuthorRoute() {
+    if (route().path !== "browse") return;
+    const params = route().params;
+    params.delete("section");
+    if (authorFilter.startsWith("profile:")) params.set("author", authorFilter.slice(8));
+    else params.delete("author");
+    if (authorFilter.startsWith("legacy:")) params.set("legacy_author", authorFilter.slice(7));
+    else params.delete("legacy_author");
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#/browse${params.size ? `?${params}` : ""}`);
   }
 
   function identity(review, avatar) {
@@ -284,6 +358,7 @@
         <div class="field"><label for="profile-bio">${escapeHtml(t("bio"))}</label><textarea id="profile-bio" name="bio" maxlength="500">${escapeHtml(profile?.bio || "")}</textarea></div>
         <div class="field"><span class="heading">${escapeHtml(t("avatar"))}</span><div class="avatar-row"><span class="avatar profile-avatar">${localPhotoUrl ? `<img src="${escapeHtml(localPhotoUrl)}" alt="">` : profile?.avatar_path ? "…" : "?"}</span><div class="file-actions"><label for="profile-photo">${escapeHtml(t("choosePhoto"))}</label><input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp"><button class="button secondary compact" type="button" data-action="photo-remove">${escapeHtml(t("removePhoto"))}</button></div></div><p class="hint">${escapeHtml(t("uploadHint"))}</p><p class="hint" id="photo-hint" role="status">${selectedPhoto ? escapeHtml(t("newPhoto")) : escapeHtml(t("noPhoto"))}</p><p id="photo-error" class="error" hidden></p></div>
         <label class="check"><input type="checkbox" name="is_public" ${profile?.is_public ? "checked" : ""}><span><strong>${escapeHtml(t("publicProfile"))}</strong><small>${escapeHtml(t("saveHint"))}</small></span></label>
+        <label class="check"><input type="checkbox" name="show_on_wall" ${profile?.show_on_wall ? "checked" : ""} ${profile?.is_public ? "" : "disabled"}><span><strong>${language === "zh" ? "在首页分享者名片墙展示我的公开名片" : "Show my public profile on the homepage contributor wall"}</strong><small>${language === "zh" ? "需同时公开个人名片并填写显示名。读者可查看你的署名或已关联名片的公开体验；匿名投稿不会因此公开身份。取消后，名片将从墙上撤下。" : "Requires a public profile and display name. Readers can explore your named or profile-linked public experiences. Anonymous reviews stay anonymous. Uncheck to remove your card from the wall."}</small></span></label>
         <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/browse">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
       </form></section><aside><div class="side-card"><h3>${escapeHtml(t("profile"))}</h3><p>${escapeHtml(t("saveHint"))}</p>${profile?.is_public ? `<span class="pill green">${language === "zh" ? "当前公开" : "Public"}</span><p style="margin-top:16px">${link(`./#/people/${encodeURIComponent(profile.id)}`, t("openProfile"))}</p>` : `<span class="pill">${language === "zh" ? "当前私密" : "Private"}</span>`}</div></aside></div>`;
   }
@@ -293,6 +368,7 @@
     await getProfile();
     if (version !== renderVersion) return;
     main.innerHTML = profileFormMarkup();
+    toggleWallChoice();
     if (profile?.avatar_path && !localPhotoUrl) {
       const url = await signedAvatar(profile.avatar_path);
       if (version !== renderVersion) return;
@@ -307,8 +383,9 @@
     if (!data?.is_public) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("profilePrivate"))}</h2>${link("./#/browse", t("backToBrowse"), "button")}</div>`; return; }
     const avatar = await signedAvatar(data.avatar_path);
     if (version !== renderVersion) return;
+    const person = wallData.people.find(person => person.id === id);
     const fields = [[t("programme"), data.programme], [t("studyYear"), data.study_year], [t("priorKnowledge"), data.prior_knowledge], [t("selectionGoal"), data.selection_goal]].filter(([, value]) => value);
-    main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(t("profile"))}</span></div><section class="public-person"><span class="person-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml((data.display_name || "?").slice(0, 1).toUpperCase())}</span><p class="eyebrow">${language === "zh" ? "公开名片 · 作者自述" : "PUBLIC PROFILE · AUTHOR-REPORTED"}</p><h1>${escapeHtml(data.display_name || t("anonymous"))}</h1>${data.bio ? `<p class="subtext">${escapeHtml(data.bio)}</p>` : ""}<dl class="context-grid">${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl><p class="small">${escapeHtml(t("contextAuthor"))}</p></section>`;
+    main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(t("profile"))}</span></div><section class="public-person"><span class="person-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml((data.display_name || "?").slice(0, 1).toUpperCase())}</span><p class="eyebrow">${language === "zh" ? "公开名片 · 作者自述" : "PUBLIC PROFILE · AUTHOR-REPORTED"}</p><h1>${escapeHtml(data.display_name || t("anonymous"))}</h1>${data.bio ? `<p class="subtext">${escapeHtml(data.bio)}</p>` : ""}<dl class="context-grid">${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl><p class="small">${escapeHtml(t("contextAuthor"))}</p>${person?.review_ids?.length ? `<a class="button secondary" href="./#/browse?author=${encodeURIComponent(id)}">${language === "zh" ? "查看课程体验" : "Explore course experiences"} · ${person.review_ids.length}</a>` : ""}</section>`;
   }
 
   const formField = (label, name, options = {}) => `<div class="field"><label for="${escapeHtml(name)}">${escapeHtml(label)}${options.optional ? ` <span class="optional">${language === "zh" ? "可选" : "optional"}</span>` : ""}</label>${options.textarea ? `<textarea id="${escapeHtml(name)}" name="${escapeHtml(name)}" ${options.required ? "required" : ""} maxlength="${options.max || 3000}">${escapeHtml(options.value ?? "")}</textarea>` : `<input id="${escapeHtml(name)}" name="${escapeHtml(name)}" type="${escapeHtml(options.type || "text")}" ${options.type === "number" ? 'min="0" max="999.9" step="0.1"' : ""} ${options.required ? "required" : ""} maxlength="${options.max || 200}" value="${escapeHtml(options.value ?? "")}" placeholder="${escapeHtml(options.placeholder || "")}">`}</div>`;
@@ -336,6 +413,7 @@
           <fieldset class="workload-picker"><legend>${escapeHtml(t("group"))}</legend><div class="field"><label for="review-group-work">${escapeHtml(t("group"))}</label><select id="review-group-work" name="group_work" required><option value="">—</option>${["none", "some", "heavy", "mixed"].map((key, i) => `<option value="${key}" ${current?.group_work === key ? "selected" : ""}>${escapeHtml(t("groupChoices")[i])}</option>`).join("")}</select></div></fieldset>
           ${formField(t("assessment"), "assessment", { value: current?.assessment, textarea: true, optional: true })}${formField(t("fit"), "fit", { value: current?.fit, textarea: true, optional: true })}${formField(t("avoid"), "avoid", { value: current?.avoid, textarea: true, optional: true })}${formField(t("experience"), "experience", { value: current?.experience, textarea: true, required: true, max: 5000 })}${formField(t("notes"), "notes", { value: current?.notes, textarea: true, optional: true, max: 2000 })}
         </section>
+        <section class="panel"><div class="field"><label for="content-language">${language === "zh" ? "评价原文语言" : "Original review language"}</label><select id="content-language" name="content_language" required><option value="">${language === "zh" ? "请选择" : "Choose a language"}</option>${model.contentLanguages.map(value => `<option value="${value}" ${current?.content_language === value ? "selected" : ""}>${sourceLanguages[language][value]}</option>`).join("")}</select><p class="hint">${language === "zh" ? "选择你撰写评价使用的语言，与网页显示语言、课程授课语言分别记录。" : "Choose the language you wrote in. This is separate from the interface and teaching languages."}</p></div></section>
         <section class="panel"><h2>${language === "zh" ? "这次修课的背景（可选）" : "Background for this experience (optional)"}</h2><p class="hint">${language === "zh" ? "可从个人资料带入初始值，再按这门课的实际情况修改。只有勾选下方公开选项才会随体验保存。" : "Profile details are starting values. Adjust them for this course. These fields are saved with the experience only if you choose to share them below."}</p><div class="field-grid">${formField(t("programme"), "reviewer_programme", { value: current ? current.reviewer_programme : profile?.programme, optional: true, max: 100 })}${formField(t("studyYear"), "reviewer_year", { value: current ? current.reviewer_year : profile?.study_year, optional: true, max: 60 })}${formField(t("priorKnowledge"), "reviewer_prior_knowledge", { value: current ? current.reviewer_prior_knowledge : profile?.prior_knowledge, optional: true, textarea: true, max: 500 })}${formField(t("selectionGoal"), "reviewer_selection_goal", { value: current ? current.reviewer_selection_goal : profile?.selection_goal, optional: true, textarea: true, max: 500 })}</div></section>
         <section class="panel"><h2>${language === "zh" ? "公开选项" : "Publication choices"}</h2><p class="subtext">${language === "zh" ? "默认匿名。每个选项分别控制；关闭背景后，背景内容不会随评价公开。" : "Anonymous by default. Each option is separate. Background details stay private unless you opt in."}</p>
           <label class="check"><input type="checkbox" name="show_name" ${current?.show_name ? "checked" : ""} ${profile?.display_name ? "" : "disabled"}><span><strong>${escapeHtml(t("showName"))}</strong><small>${profile?.display_name ? escapeHtml(profile.display_name) : escapeHtml(t("ownProfile"))}</small></span></label>
@@ -370,39 +448,47 @@
     $("#term-other").required = isOther;
   }
 
+  function toggleWallChoice() {
+    const form = $("#profile-form"); if (!form) return;
+    const isPublic = $("[name=is_public]", form).checked;
+    const wall = $("[name=show_on_wall]", form);
+    wall.disabled = !isPublic;
+    if (!isPublic) wall.checked = false;
+  }
+
   function syncContributorWall() {
-    const host = $("#contributors-wall");
-    if (!host) return;
-    const visible = route().path === "browse";
-    host.hidden = !visible;
+    const host = $("#contributors-wall"); if (!host) return;
+    const visible = route().path === "browse"; host.hidden = !visible;
     if (!visible) return;
-    if (wallLanguage !== language) {
+    const snapshot = JSON.stringify(wallData);
+    if (wallLanguage !== language || mountedWallData !== snapshot) {
       cleanupWall?.();
-      cleanupWall = window.mountNamecardWall?.(host, { language, onCourses(name) {
+      cleanupWall = window.mountNamecardWall?.(host, { language, data: wallData, onCourses(person) {
         query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = "";
-        authorFilter = name;
-        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#/browse`);
-        renderBrowse();
-        renderHeader();
-        const results = $(".results-meta");
-        results?.setAttribute("tabindex", "-1");
-        results?.scrollIntoView({ block: "start", behavior: "instant" });
-        results?.focus({ preventScroll: true });
+        authorFilter = person.wallKey;
+        syncAuthorRoute();
+        renderBrowse(); renderHeader();
+        const results = $(".results-meta"); results?.setAttribute("tabindex", "-1");
+        results?.scrollIntoView({ block: "start", behavior: "instant" }); results?.focus({ preventScroll: true });
       }});
-      wallLanguage = language;
+      wallLanguage = language; mountedWallData = snapshot;
     }
   }
 
   async function render() {
     const version = ++renderVersion;
+    loadMetricsRole();
     renderHeader();
     if (!db) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2></div>`; return; }
     if (!catalogLoadedAt) loadingPage();
     main.setAttribute("aria-busy", "true");
     try {
       await loadCourses();
+      await loadContributors();
       if (version !== renderVersion) return;
       const current = route();
+      if (current.path === "browse" && current.params.has("author")) authorFilter = `profile:${current.params.get("author")}`;
+      else if (current.path === "browse" && current.params.has("legacy_author")) authorFilter = `legacy:${current.params.get("legacy_author")}`;
       if (current.path === "course") await renderCourse(decodeURIComponent(current.id), version);
       else if (current.path === "share") await renderShare(current.params.get("edit") || "", version);
       else if (current.path === "mine") await renderMine(version);
@@ -412,6 +498,8 @@
       if (version !== renderVersion) return;
       renderHeader();
       syncContributorWall();
+      const metricPage = ({ course: "course", share: "share", mine: "mine", profile: "profile", people: "person" })[current.path] || "browse";
+      window.SILS_ANALYTICS?.page({ page: metricPage, courseId: metricPage === "course" ? (courseAliases.get(current.id) || current.id) : null, viewKey: metricPage === "person" ? current.id : null });
       if (route().params.get("section") === "contributors") $("#contributors-wall")?.scrollIntoView({ block: "start", behavior: "instant" });
       main.removeAttribute("aria-busy");
     } catch (error) {
@@ -425,6 +513,7 @@
   async function handleProfileSubmit(form, values = new FormData(form)) {
     const userId = session?.user.id;
     if (!userId) throw Object.assign(new Error(t("loginRequired")), { code: "loginRequired" });
+    if (values.has("show_on_wall") && values.has("is_public") && !String(values.get("display_name") || "").trim()) throw Object.assign(new Error(t("wallNameRequired")), { code: "wallNameRequired" });
     let avatarPath = profile?.avatar_path || null;
     let uploadedPath = "";
     if (selectedPhoto) {
@@ -443,6 +532,7 @@
       selection_goal: String(values.get("selection_goal") || "").trim() || null,
       bio: String(values.get("bio") || "").trim() || null,
       is_public: values.has("is_public"),
+      show_on_wall: values.has("is_public") && values.has("show_on_wall"),
       avatar_path: avatarPath
     };
     if (session?.user.id !== userId) throw new Error(t("loginRequired"));
@@ -456,6 +546,7 @@
     if (selectedPhoto) { localPhotoUrl && URL.revokeObjectURL(localPhotoUrl); localPhotoUrl = ""; selectedPhoto = null; }
     profile = { ...(profile || { id: userId }), ...payload };
     avatarUrlCache.clear();
+    wallLoadedAt = 0;
     toast(t("profileSaved"));
     await render();
   }
@@ -499,7 +590,7 @@
     if (action === "share") { if (!session) { login("community#/share"); return; } window.location.hash = "/share"; return; }
     if (action === "retry") { await render(); return; }
     if (action === "search") { query = $("#course-search")?.value || ""; renderBrowse(); $(".results-meta")?.scrollIntoView({block: "start", behavior: "instant"}); return; }
-    if (action === "clear-filters") { query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = authorFilter = ""; renderBrowse(); return; }
+    if (action === "clear-filters") { query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = authorFilter = ""; syncAuthorRoute(); renderBrowse(); return; }
     if (action === "photo-remove") { try { await handlePhotoRemove(); } catch (error) { fail(error); } return; }
     if (action?.startsWith("edit-review:")) { window.location.hash = `/share?edit=${encodeURIComponent(action.split(":")[1])}`; return; }
     if (event.target.closest("[data-auth-signout]")) {
@@ -513,6 +604,7 @@
   });
 
   document.addEventListener("change", (event) => {
+    if (event.target.matches("#profile-form [name=is_public]")) toggleWallChoice();
     if (event.target.matches("input[name=course_mode]")) toggleNewCourseFields();
     if (event.target.matches("#term")) toggleTermField();
     if (event.target.matches("#browse-filters select")) { readBrowseFilters(); renderBrowse(); }
@@ -587,7 +679,7 @@
           else input.value = field.value;
         });
       });
-      toggleNewCourseFields(); toggleTermField();
+      toggleNewCourseFields(); toggleTermField(); toggleWallChoice();
     }
   });
   document.addEventListener("click", (event) => {
@@ -611,6 +703,10 @@
     if (authLoaded) window.setTimeout(() => render(), 0);
   });
   window.addEventListener("sils:auth-error", () => toast(t("authError")));
+
+  window.setInterval(async () => {
+    if (!document.hidden && route().path === "browse" && db) { await loadContributors(true); syncContributorWall(); }
+  }, 60000);
 
   activePath = route().path;
   session = auth?.session || null;

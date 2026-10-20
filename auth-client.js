@@ -32,6 +32,9 @@
       if (window.location.pathname !== destination.pathname || window.location.hash !== destination.hash) {
         window.location.replace(destination.href);
       }
+    } else if (returnTarget === "analytics") {
+      const destination = new URL("analytics.html", siteRoot);
+      if (window.location.pathname !== destination.pathname) window.location.replace(destination.href);
     }
   }
 
