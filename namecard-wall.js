@@ -19,9 +19,11 @@
       seen.add(profile.id);
       const previous=legacy.find(p=>p.key===profile.legacy_author_key)||{};
       const old=people.findIndex(p=>p.key===profile.legacy_author_key);if(old>=0)people.splice(old,1);
-      people.push({...previous,wallKey:`profile:${profile.id}`,profileId:profile.id,name:profile.display_name,
+      // Cindy's approved historical presentation stays separate from her account identity.
+      const display=previous.key==='cindy'?{name:previous.name,term:previous.term,focus:previous[language]||previous.en,imageUrl:assetBase+previous.image}:{name:profile.display_name,
         term:[profile.programme,profile.study_year].filter(Boolean).join(' · '),focus:profile.bio||(zh?'作者尚未填写简介。':'This contributor has not added a bio yet.'),
-        imageUrl:profile.avatar_url||'',reviewIds:[...new Set(profile.review_ids||[])]});
+        imageUrl:profile.avatar_url||''};
+      people.push({...previous,...display,wallKey:`profile:${profile.id}`,profileId:profile.id,reviewIds:[...new Set(profile.review_ids||[])]});
     }
     return people;
   }
