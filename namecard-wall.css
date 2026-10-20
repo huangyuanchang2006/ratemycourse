@@ -30,3 +30,7 @@
 .namecard-wall__status { min-height:24px; max-width:1280px; padding:0 32px; margin:0 auto; font-size:14px; color:var(--wall-muted); }
 @media (max-width:640px) { .namecard-wall { padding:38px 0 26px; } .namecard-wall__head { padding-inline:20px; align-items:start; } .namecard-wall__toggle { display:none; } .namecard-wall__viewport { padding-inline:20px; scroll-padding-inline:20px; scroll-snap-type:x mandatory; } .namecard { width:min(82vw,344px); flex-basis:min(82vw,344px); scroll-snap-align:start; } .namecard__focus { min-height:75px; } .namecard-wall__status { padding-inline:20px; } }
 @media (prefers-reduced-motion:reduce) { .namecard,.namecard-wall button { transition:none; } .namecard:hover { transform:none; } }
+
+/* Only opted-in saved framing uses a definite image box; historical portraits keep their approved layout. */
+.namecard__portrait--framed{position:relative}
+.namecard__portrait--framed img{position:absolute;inset:0;width:100%;height:100%}
