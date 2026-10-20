@@ -6,7 +6,7 @@
   const auth = window.SILS_AUTH;
   const db = auth?.client;
   const model = window.SILS_COMMUNITY_MODEL;
-  const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_profile_id,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en";
+  const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_avatar_crop,public_profile_id,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en";
   const OWN_REVIEW_FIELDS = `${PUBLIC_REVIEW_FIELDS},reviewer_id,status,reviewer_background,updated_at,suggested_course_syllabus_urls,show_name,show_avatar`;
   const COURSE_FIELDS = "id,course_code,title,provider,credits,language,syllabus_url,syllabus_urls,created_at,canonical_course_id";
   const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
@@ -31,6 +31,8 @@
   let publishedReviews = [];
   let localPhotoUrl = "";
   let selectedPhoto = null;
+  let photoDraft = null, cleanupPhotoEditor;
+  const photos = window.SILS_PHOTO;
   let avatarUrlCache = new Map();
   let query = "";
   let providerFilter = "";
@@ -97,7 +99,7 @@
   function updateDraftStatus() {
     const status = $(".draft-status");
     if (!status) return;
-    const dirty = formDrafts.has(activeFormKey) || Boolean(selectedPhoto);
+    const dirty = formDrafts.has(activeFormKey) || Boolean(selectedPhoto) || photos?.dirty(photoDraft);
     status.hidden = !dirty;
     status.textContent = language === "zh" ? "有未保存的修改 · 此标签页内保留，刷新前请保存。" : "Unsaved changes · Kept in this tab. Save before reloading.";
   }
@@ -336,7 +338,7 @@
 
   function identity(review, avatar) {
     const name = review.public_display_name || t("anonymous");
-    const avatarMarkup = avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml(name.slice(0, 1).toUpperCase());
+    const avatarMarkup = avatar ? `<img src="${escapeHtml(avatar)}" alt="" style="${photos.style(review.public_avatar_crop)}">` : escapeHtml(name.slice(0, 1).toUpperCase());
     const profileLink = review.public_profile_id ? `<a class="text-link" href="./#/people/${encodeURIComponent(review.public_profile_id)}">${escapeHtml(t("openProfile"))} ↗</a>` : "";
     return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${language === "zh" ? "体验作者：" : "Review by: "}${escapeHtml(name)}</strong><small>${escapeHtml(reviewTerm(review))}</small></div>${profileLink}</div>`;
   }
@@ -402,32 +404,30 @@
 
   function profileFormMarkup() {
     return `<div class="page-heading"><div><p class="eyebrow">YOUR OPTIONAL PROFILE</p><h1>${escapeHtml(t("profile"))}</h1><p class="subtext">${language === "zh" ? "姓名、背景和照片均为可选自述；Google 不会自动提供或公开这些内容。" : "Your name, background, and photo are optional and self-reported. Google details are never imported or published automatically."}</p></div></div>
-      <div class="detail-layout"><section class="form-shell"><form id="profile-form" class="panel">
+      <div class="detail-layout profile-editor-layout"><section class="form-shell"><form id="profile-form" class="panel">
         <div class="field"><label for="profile-name">${escapeHtml(t("displayName"))}</label><input id="profile-name" name="display_name" type="text" maxlength="60" value="${escapeHtml(profile?.display_name || "")}" placeholder="${language === "zh" ? "可留空；投稿可匿名" : "Optional; reviews can be anonymous"}"></div>
-        <div class="field-grid"><div class="field"><label for="profile-programme">${escapeHtml(t("programme"))}</label><input id="profile-programme" name="programme" maxlength="100" value="${escapeHtml(profile?.programme || "")}"></div><div class="field"><label for="profile-year">${escapeHtml(t("profileStudyStage"))}</label><input id="profile-year" name="study_year" maxlength="60" value="${escapeHtml(profile?.study_year || "")}"></div><div class="field"><label for="profile-prior">${escapeHtml(t("priorKnowledge"))}</label><textarea id="profile-prior" name="prior_knowledge" maxlength="500">${escapeHtml(profile?.prior_knowledge || "")}</textarea></div><div class="field"><label for="profile-goal">${escapeHtml(t("selectionGoal"))}</label><textarea id="profile-goal" name="selection_goal" maxlength="500">${escapeHtml(profile?.selection_goal || "")}</textarea></div></div>
         <div class="field"><label for="profile-bio">${escapeHtml(t("bio"))}</label><textarea id="profile-bio" name="bio" maxlength="500">${escapeHtml(profile?.bio || "")}</textarea></div>
-        <div class="field"><span class="heading">${escapeHtml(t("avatar"))}</span><div class="avatar-row"><span class="avatar profile-avatar">${localPhotoUrl ? `<img src="${escapeHtml(localPhotoUrl)}" alt="">` : profile?.avatar_path ? "…" : "?"}</span><div class="file-actions"><label for="profile-photo">${escapeHtml(t("choosePhoto"))}</label><input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp"><button class="button secondary compact" type="button" data-action="photo-remove">${escapeHtml(t("removePhoto"))}</button></div></div><p class="hint">${escapeHtml(t("uploadHint"))}</p><p class="hint" id="photo-hint" role="status">${selectedPhoto ? escapeHtml(t("newPhoto")) : escapeHtml(t("noPhoto"))}</p><p id="photo-error" class="error" hidden></p></div>
+        <details class="profile-background"><summary>${language === "zh" ? "已有背景资料" : "Background details"}</summary><p class="hint">${language === "zh" ? "这些是当前个人资料。每条体验的修课背景单独填写。" : "These are your current profile details. Course backgrounds are entered separately for each experience."}</p><div class="field-grid"><div class="field"><label for="profile-programme">${escapeHtml(t("programme"))}</label><input id="profile-programme" name="programme" maxlength="100" value="${escapeHtml(profile?.programme || "")}"></div><div class="field"><label for="profile-year">${escapeHtml(t("profileStudyStage"))}</label><input id="profile-year" name="study_year" maxlength="60" value="${escapeHtml(profile?.study_year || "")}"></div><div class="field"><label for="profile-prior">${escapeHtml(t("priorKnowledge"))}</label><textarea id="profile-prior" name="prior_knowledge" maxlength="500">${escapeHtml(profile?.prior_knowledge || "")}</textarea></div><div class="field"><label for="profile-goal">${escapeHtml(t("selectionGoal"))}</label><textarea id="profile-goal" name="selection_goal" maxlength="500">${escapeHtml(profile?.selection_goal || "")}</textarea></div></div></details>
+        ${photos.markup(language)}
         <label class="check"><input type="checkbox" name="is_public" ${profile?.is_public ? "checked" : ""}><span><strong>${escapeHtml(t("publicProfile"))}</strong><small>${escapeHtml(t("saveHint"))}</small></span></label>
         <label class="check"><input type="checkbox" name="show_on_wall" ${profile?.show_on_wall ? "checked" : ""} ${profile?.is_public ? "" : "disabled"}><span><strong>${language === "zh" ? "在首页分享者名片墙展示我的公开名片" : "Show my public profile on the homepage contributor wall"}</strong><small>${language === "zh" ? "需同时公开个人名片并填写显示名。读者可查看你的署名或已关联名片的公开体验；匿名投稿不会因此公开身份。取消后，名片将从墙上撤下。" : "Requires a public profile and display name. Readers can explore your named or profile-linked public experiences. Anonymous reviews stay anonymous. Uncheck to remove your card from the wall."}</small></span></label>
-        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/browse">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
-      </form></section><aside><div class="side-card"><h3>${escapeHtml(t("profile"))}</h3><p>${escapeHtml(t("saveHint"))}</p>${profile?.is_public ? `<span class="pill green">${language === "zh" ? "当前公开" : "Public"}</span><p style="margin-top:16px">${link(`./#/people/${encodeURIComponent(profile.id)}`, t("openProfile"))}</p>` : `<span class="pill">${language === "zh" ? "当前私密" : "Private"}</span>`}</div></aside></div>`;
+        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/browse">${escapeHtml(t("cancel"))}</a><button class="button secondary" type="button" data-photo-action="preview">${language === "zh" ? "预览公开效果" : "Preview public appearance"}</button><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
+      </form></section><aside>${photos.previewMarkup(language)}</aside></div>`;
   }
 
   async function renderProfile(version) {
     if (!session) { gated(t("profile"), t("loginRequired")); return; }
     await getProfile();
+    const source = await signedAvatar(profile?.avatar_path);
     if (version !== renderVersion) return;
+    if (!photoDraft) photoDraft = photos.create(profile, source);
+    else photoDraft.source = source;
     main.innerHTML = profileFormMarkup();
     toggleWallChoice();
-    if (profile?.avatar_path && !localPhotoUrl) {
-      const url = await signedAvatar(profile.avatar_path);
-      if (version !== renderVersion) return;
-      if (url && $(".profile-avatar")) $(".profile-avatar").innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
-    }
   }
 
   async function renderPerson(id, version) {
-    const { data, error } = await db.from("reviewer_profiles").select("id,display_name,programme,study_year,prior_knowledge,selection_goal,bio,is_public,avatar_path").eq("id", id).maybeSingle();
+    const { data, error } = await db.from("reviewer_profiles").select("id,display_name,programme,study_year,prior_knowledge,selection_goal,bio,is_public,avatar_path,photo_crops").eq("id", id).maybeSingle();
     if (error) throw error;
     if (version !== renderVersion) return;
     if (!data?.is_public) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("profilePrivate"))}</h2>${link("./#/browse", t("backToBrowse"), "button")}</div>`; return; }
@@ -435,7 +435,7 @@
     if (version !== renderVersion) return;
     const person = wallData.people.find(person => person.id === id);
     const fields = [[t("programme"), data.programme], [t("profileStudyStage"), data.study_year], [t("priorKnowledge"), data.prior_knowledge], [t("selectionGoal"), data.selection_goal]].filter(([, value]) => value);
-    main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(t("profile"))}</span></div><section class="public-person"><span class="person-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="">` : escapeHtml((data.display_name || "?").slice(0, 1).toUpperCase())}</span><p class="eyebrow">${language === "zh" ? "公开名片 · 作者自述" : "PUBLIC PROFILE · AUTHOR-REPORTED"}</p><h1>${escapeHtml(data.display_name || t("anonymous"))}</h1>${data.bio ? `<p class="subtext">${escapeHtml(data.bio)}</p>` : ""}<dl class="context-grid">${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl><p class="small">${escapeHtml(t("contextAuthor"))}</p>${person?.review_ids?.length ? `<a class="button secondary" href="./#/browse?author=${encodeURIComponent(id)}">${language === "zh" ? "查看课程体验" : "Explore course experiences"} · ${person.review_ids.length}</a>` : ""}</section>`;
+    main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(t("profile"))}</span></div><section class="public-person"><span class="person-avatar">${avatar ? `<img src="${escapeHtml(avatar)}" alt="" style="${photos.style(data.photo_crops?.avatar)}">` : escapeHtml((data.display_name || "?").slice(0, 1).toUpperCase())}</span><p class="eyebrow">${language === "zh" ? "公开名片 · 作者自述" : "PUBLIC PROFILE · AUTHOR-REPORTED"}</p><h1>${escapeHtml(data.display_name || t("anonymous"))}</h1>${data.bio ? `<p class="subtext">${escapeHtml(data.bio)}</p>` : ""}<dl class="context-grid">${fields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl><p class="small">${escapeHtml(t("contextAuthor"))}</p>${person?.review_ids?.length ? `<a class="button secondary" href="./#/browse?author=${encodeURIComponent(id)}">${language === "zh" ? "查看课程体验" : "Explore course experiences"} · ${person.review_ids.length}</a>` : ""}</section>`;
   }
 
   const formField = (label, name, options = {}) => `<div class="field"><label for="${escapeHtml(name)}">${escapeHtml(label)}${options.optional ? ` <span class="optional">${language === "zh" ? "可选" : "optional"}</span>` : ""}</label>${options.textarea ? `<textarea id="${escapeHtml(name)}" name="${escapeHtml(name)}" ${options.required ? "required" : ""} maxlength="${options.max || 3000}">${escapeHtml(options.value ?? "")}</textarea>` : `<input id="${escapeHtml(name)}" name="${escapeHtml(name)}" type="${escapeHtml(options.type || "text")}" ${options.type === "number" ? 'min="0" max="999.9" step="0.1"' : ""} ${options.required ? "required" : ""} maxlength="${options.max || 200}" value="${escapeHtml(options.value ?? "")}" placeholder="${escapeHtml(options.placeholder || "")}">`}</div>`;
@@ -532,6 +532,7 @@
     renderHeader();
     if (!db) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2></div>`; return; }
     if (!catalogLoadedAt) loadingPage();
+    cleanupPhotoEditor?.(); cleanupPhotoEditor = null;
     main.setAttribute("aria-busy", "true");
     try {
       await loadCourses();
@@ -548,6 +549,7 @@
       else renderBrowse();
       if (version !== renderVersion) return;
       restoreForm(current);
+      if (current.path === "profile" && photoDraft) cleanupPhotoEditor = photos.mount(main, photoDraft, language, () => { selectedPhoto = photoDraft.file; updateDraftStatus(); }, profile?.id === "d56cca0a-787e-413d-8b96-9a513beaf322" ? window.SILS_NAMECARD_WALL.buildPeople({ people: [{ ...profile, legacy_author_key: "cindy" }], replaced_legacy_keys: ["chambers", "cindy", "richard"] }, language)[0] : null, profile?.id === "f6669b7c-2104-4dcb-ba10-decd41fc130f");
       renderHeader();
       syncContributorWall();
       const metricPage = ({ course: "course", share: "share", mine: "mine", profile: "profile", people: "person" })[current.path] || "browse";
@@ -566,9 +568,11 @@
     const userId = session?.user.id;
     if (!userId) throw Object.assign(new Error(t("loginRequired")), { code: "loginRequired" });
     if (values.has("show_on_wall") && values.has("is_public") && !String(values.get("display_name") || "").trim()) throw Object.assign(new Error(t("wallNameRequired")), { code: "wallNameRequired" });
-    let avatarPath = profile?.avatar_path || null;
+    if (photoDraft?.loading) throw new Error(language === "zh" ? "照片仍在读取，请稍候再保存。" : "Your photo is still loading. Please wait before saving.");
+    const draft = photoDraft;
+    let avatarPath = draft?.removed ? null : profile?.avatar_path || null;
     let uploadedPath = "";
-    if (selectedPhoto) {
+    if (selectedPhoto && !draft?.removed) {
       const extension = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" })[selectedPhoto.type];
       if (!extension || selectedPhoto.size > MAX_PHOTO_SIZE) throw new Error(t("photoError"));
       uploadedPath = `${userId}/${crypto.randomUUID()}.${extension}`;
@@ -585,7 +589,8 @@
       bio: String(values.get("bio") || "").trim() || null,
       is_public: values.has("is_public"),
       show_on_wall: values.has("is_public") && values.has("show_on_wall"),
-      avatar_path: avatarPath
+      avatar_path: avatarPath,
+      photo_crops: avatarPath ? photos.crops(draft?.crops || profile?.photo_crops) : null
     };
     if (session?.user.id !== userId) throw new Error(t("loginRequired"));
     const result = profile
@@ -595,28 +600,14 @@
       if (uploadedPath) await db.storage.from(BUCKET).remove([uploadedPath]);
       throw result.error;
     }
-    if (selectedPhoto) { localPhotoUrl && URL.revokeObjectURL(localPhotoUrl); localPhotoUrl = ""; selectedPhoto = null; }
+    if (session?.user.id !== userId) return;
+    photos.dispose(draft); photoDraft = null; selectedPhoto = null; localPhotoUrl = "";
     profile = { ...(profile || { id: userId }), ...payload };
     avatarUrlCache.clear();
     wallLoadedAt = 0;
     clearFormDraft();
     toast(t("profileSaved"));
     await render();
-  }
-
-  async function handlePhotoRemove() {
-    selectedPhoto = null;
-    if (localPhotoUrl) URL.revokeObjectURL(localPhotoUrl);
-    localPhotoUrl = "";
-    if (profile?.avatar_path) {
-      const oldPath = profile.avatar_path;
-      const { error: updateError } = await db.from("reviewer_profiles").update({ avatar_path: null }).eq("id", session.user.id).select("id").single();
-      if (updateError) throw updateError;
-      profile.avatar_path = null;
-      const { error } = await db.storage.from(BUCKET).remove([oldPath]);
-      if (error) throw error;
-    }
-    avatarUrlCache.clear(); toast(t("photoRemoved")); await render();
   }
 
   async function handleReviewSubmit(form, values = new FormData(form)) {
@@ -645,7 +636,6 @@
     if (action === "retry") { await render(); return; }
     if (action === "search") { query = $("#course-search")?.value || ""; renderBrowse(); $(".results-meta")?.scrollIntoView({block: "start", behavior: "instant"}); return; }
     if (action === "clear-filters") { query = providerFilter = languageFilter = workloadFilter = groupFilter = fitFilter = avoidFilter = authorFilter = ""; syncAuthorRoute(); renderBrowse(); return; }
-    if (action === "photo-remove") { try { await handlePhotoRemove(); } catch (error) { fail(error); } return; }
     if (action?.startsWith("edit-review:")) { window.location.hash = `/share?edit=${encodeURIComponent(action.split(":")[1])}`; return; }
     if (event.target.closest("[data-auth-signout]")) {
       try { await auth.signOut(); toast(t("signedOut")); window.location.hash = "/browse"; } catch (error) { fail(error); }
@@ -663,22 +653,6 @@
     if (event.target.matches("#term")) toggleTermField();
     if (event.target.matches("#browse-filters select")) { const focusId = event.target.id; readBrowseFilters(); renderBrowse(); document.getElementById(focusId)?.focus({ preventScroll: true }); }
     if (event.target.closest("#profile-form, #review-form")) rememberForm();
-    if (event.target.matches("#profile-photo")) {
-      const file = event.target.files?.[0];
-      const error = $("#photo-error");
-      if (error) { error.hidden = true; error.textContent = ""; }
-      if (!file) return;
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > MAX_PHOTO_SIZE) {
-        if (error) { error.textContent = t("photoError"); error.hidden = false; }
-        event.target.value = ""; return;
-      }
-      selectedPhoto = file;
-      if (localPhotoUrl) URL.revokeObjectURL(localPhotoUrl);
-      localPhotoUrl = URL.createObjectURL(file);
-      const avatar = $(".profile-avatar"); if (avatar) avatar.innerHTML = `<img src="${escapeHtml(localPhotoUrl)}" alt="">`;
-      const hint = $("#photo-hint"); if (hint) hint.textContent = t("newPhoto");
-      updateDraftStatus();
-    }
   });
 
   document.addEventListener("keydown", (event) => {
@@ -743,13 +717,15 @@
     session = event.detail.session;
     if (previousId === session?.user.id) return;
     formDrafts.clear(); activeFormKey = ""; activeFormBaseline = "";
+    photos?.dispose(photoDraft); photoDraft = null;
+    cleanupPhotoEditor?.(); cleanupPhotoEditor = null;
     selectedPhoto = null; profile = null; avatarUrlCache.clear();
     if (localPhotoUrl) URL.revokeObjectURL(localPhotoUrl);
     localPhotoUrl = "";
     if (authLoaded) window.setTimeout(() => render(), 0);
   });
   window.addEventListener("beforeunload", event => {
-    if (!formDrafts.size && !selectedPhoto) return;
+    if (!formDrafts.size && !selectedPhoto && !photos?.dirty(photoDraft)) return;
     event.preventDefault(); event.returnValue = "";
   });
   window.addEventListener("resize", syncFilterPanel, { passive: true });

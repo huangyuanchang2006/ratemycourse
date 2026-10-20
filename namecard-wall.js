@@ -22,7 +22,7 @@
       // Cindy's approved historical presentation stays separate from her account identity.
       const display=previous.key==='cindy'?{name:previous.name,term:previous.term,focus:previous[language]||previous.en,imageUrl:assetBase+previous.image}:{name:profile.display_name,
         term:[profile.programme,profile.study_year].filter(Boolean).join(' · '),focus:profile.bio||(zh?'作者尚未填写简介。':'This contributor has not added a bio yet.'),
-        imageUrl:profile.avatar_url||''};
+        imageUrl:profile.avatar_url||'',photoCrop:profile.photo_crops?.wall};
       people.push({...previous,...display,wallKey:`profile:${profile.id}`,profileId:profile.id,reviewIds:[...new Set(profile.review_ids||[])]});
     }
     return people;
@@ -32,7 +32,7 @@
     const card=p=>{
       const name=escape(p.name),initial=escape(Array.from(p.name)[0]?.toUpperCase()||'?');
       const profileUrl=p.profileId?`./#/people/${encodeURIComponent(p.profileId)}`:'';
-      const photo=p.imageUrl?`<img src="${escape(p.imageUrl)}" alt="${name}" width="344" height="208" loading="lazy">`:'';
+      const photo=p.imageUrl?`<img src="${escape(p.imageUrl)}" alt="${name}" width="344" height="208" loading="lazy" ${p.photoCrop?`style="${escape(globalThis.SILS_PHOTO?.style(p.photoCrop,'wall')||'')}"`:''}>`:'';
       const contacts=[p.wechat?`<button type="button" data-wechat="${escape(p.wechat)}" aria-label="${zh?'复制':'Copy'} ${name} WeChat">${zh?'微信':'WeChat'}</button>`:'',p.instagram?`<a href="https://www.instagram.com/${encodeURIComponent(p.instagram)}/" target="_blank" rel="noreferrer">Instagram ↗</a>`:'',p.xhs?`<a href="https://www.xiaohongshu.com/search_result?keyword=Chambers%E5%9C%A8%E4%B8%9C%E4%BA%AC" target="_blank" rel="noreferrer">${zh?'小红书':'Xiaohongshu'} ↗</a>`:''].join('');
       return `<article class="namecard${p.author?' namecard--author':''}" data-wall-key="${escape(p.wallKey)}"><div class="namecard__portrait">${photo}<span class="namecard__initial" ${photo?'hidden':''}>${initial}</span></div><div class="namecard__body"><p class="namecard__role">${p.author?(zh?'网站作者':'Website creator'):(zh?'课程分享者':'Course contributor')}</p><h3>${profileUrl?`<a href="${profileUrl}">${name}</a>`:name}</h3><p class="namecard__term">${escape(p.term)}</p><p class="namecard__focus">${escape(p.focus)}</p>${profileUrl?`<a class="text-link namecard__profile" href="${profileUrl}">${zh?'查看公开名片':'View profile card'} ↗</a>`:''}${contacts?`<div class="namecard__contacts">${contacts}</div>`:''}${!p.profileId||p.reviewIds.length?`<button class="namecard__action" type="button" data-wall-courses="${escape(p.wallKey)}"><span>${zh?'查看课程体验':'Explore course experiences'}${p.profileId?` · ${p.reviewIds.length}`:''}</span><span aria-hidden="true">↗</span></button>`:`<p class="small">${zh?'暂无署名公开体验':'No attributed public experiences yet'}</p>`}</div></article>`;
     };

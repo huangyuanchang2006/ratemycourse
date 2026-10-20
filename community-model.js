@@ -73,6 +73,7 @@
       show_avatar: showAvatar,
       public_display_name: showName ? text(profile.display_name) : null,
       public_avatar_path: showAvatar ? profile.avatar_path : null,
+      public_avatar_crop: showAvatar ? profile.photo_crops?.avatar || null : null,
       public_profile_id: showProfile ? userId : null
     };
     if ((!isNew && !payload.course_id) || (isNew && (!payload.suggested_course_title || !providers.includes(payload.suggested_course_provider))) || !payload.term || !payload.experience || !Number.isInteger(payload.workload) || payload.workload < 1 || payload.workload > 5 || !groups.includes(payload.group_work)) reject("required");
