@@ -18,7 +18,9 @@
     const id=()=>env.crypto.randomUUID();
     const locked=env.navigator.doNotTrack==='1'||env.navigator.globalPrivacyControl===true;
     let optedOut=read(local(),'rmc-metrics-opt-out')==='1';
-    const isTest=['localhost','127.0.0.1'].includes(env.location.hostname)||new URL(env.location.href).searchParams.get('analytics_test')==='1';
+    const testChoice=new URL(env.location.href).searchParams.get('analytics_test');
+    if(testChoice==='1'||testChoice==='0')save(tab(),'rmc-metrics-test',testChoice);
+    const isTest=['localhost','127.0.0.1'].includes(env.location.hostname)||read(tab(),'rmc-metrics-test')==='1';
     let visitor=read(local(),'rmc-metrics-visitor');
     let session;
     try{session=JSON.parse(read(local(),'rmc-metrics-session')||'null');}catch{}
