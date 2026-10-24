@@ -204,3 +204,8 @@ footer,#auth-notice{font-size:13px;line-height:1.6}
 .public-check-head{display:flex;align-items:start;gap:12px;justify-content:space-between;position:sticky;top:0;background:var(--surface);z-index:2}.public-check-head h2{margin:0;align-self:center}.dialog-close{flex:none;display:grid;place-items:center;width:44px;height:44px;border:1px solid var(--line);border-radius:50%;background:var(--surface);color:var(--ink);font:26px/1 system-ui;cursor:pointer}#public-check .dialog-close{margin:0}.public-check-head+p{margin-top:14px}
 
 .crop-actions .button{min-height:44px;font-size:12px}
+
+/* Full school names must fit narrow filters, forms, and course cards. */
+.filter,.field-grid>.field,.guide-grid>article{min-width:0}
+.filter select,.field select{min-width:0;max-width:100%}
+.course-card .chips .pill{max-width:100%;white-space:normal}
