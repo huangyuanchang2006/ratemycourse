@@ -209,3 +209,8 @@ footer,#auth-notice{font-size:13px;line-height:1.6}
 .filter,.field-grid>.field,.guide-grid>article{min-width:0}
 .filter select,.field select{min-width:0;max-width:100%}
 .course-card .chips .pill{max-width:100%;white-space:normal}
+
+/* Owner-only moderation feedback keeps the existing submission card layout. */
+.review-feedback{margin-top:20px;padding:16px 18px;background:var(--amber-soft);border-left:3px solid #c79a5b;border-radius:4px;overflow-wrap:anywhere}
+.review-feedback>strong{font-size:14px}.review-feedback ul{margin:10px 0 0;padding-left:20px}.review-feedback li+li{margin-top:12px}.review-feedback li p{margin:4px 0 0}
+.review-appeal{margin-top:14px}.review-appeal summary{cursor:pointer;color:var(--wine);font-size:13px}.review-appeal form{max-width:640px;margin-top:12px}.review-appeal .field{margin:12px 0}.submission>div:first-child{min-width:0}

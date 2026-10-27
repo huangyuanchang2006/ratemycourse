@@ -7,7 +7,7 @@
   const db = auth?.client;
   const model = window.SILS_COMMUNITY_MODEL;
   const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_avatar_crop,public_profile_id,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en";
-  const OWN_REVIEW_FIELDS = `${PUBLIC_REVIEW_FIELDS},reviewer_id,status,reviewer_background,updated_at,suggested_course_syllabus_urls,show_name,show_avatar`;
+  const reviewFeedback = window.SILS_REVIEW_FEEDBACK;
   const COURSE_FIELDS = "id,course_code,title,provider,credits,language,syllabus_url,syllabus_urls,created_at,canonical_course_id";
   const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
   const BUCKET = "reviewer-avatars";
@@ -395,16 +395,25 @@
     main.innerHTML = `<section class="gated"><b class="brand-mark login-mark">r.</b><p class="eyebrow">GOOGLE SIGN-IN</p><h1>${escapeHtml(title)}</h1><p>${escapeHtml(description)}</p><button class="button" type="button" data-open-login>${escapeHtml(t("signIn"))}</button></section>`;
   }
 
+  function moderationMarkup(item) {
+    const feedback = Array.isArray(item.moderation_feedback) ? item.moderation_feedback : [];
+    const zh = language === "zh";
+    const detail = feedback.length ? `<section class="review-feedback" aria-label="${zh ? "审核反馈" : "Review feedback"}"><strong>${zh ? "请修改以下内容" : "Please revise the following"}</strong><ul>${feedback.map((entry) => `<li><span class="small">${escapeHtml(entry.rule_id || "")} · ${escapeHtml((entry.fields || []).map((field) => reviewFeedback.fieldLabel(field, language)).join(" / "))}</span><p>${escapeHtml(reviewFeedback.message(entry, language))}</p></li>`).join("")}</ul></section>` : "";
+    const context = item.historical_exempt ? `<p class="small">${zh ? "历史投稿已豁免，编辑后仍保持公开。" : "Historical review: edits keep this contribution public."}</p>` : item.status === "needs_human" ? `<p class="small">${zh ? "正在等待人工复核。你也可以编辑内容后重新提交。" : "Waiting for human review. You can also edit and resubmit."}</p>` : item.status === "pending" && item.moderation_queue === "failed" ? `<p class="small">${zh ? "自动审核暂未完成，内容仍在待审。可请求人工复核。" : "Automatic review has not completed. Your contribution is still pending; you can request human review."}</p>` : "";
+    const appeal = item.appeal_state === "open" ? `<p class="small">${zh ? "人工复核申请已收到。" : "Your request for human review has been received."}</p>` : ["pending", "changes_requested", "needs_human"].includes(item.status) ? `<details class="review-appeal"><summary>${zh ? "请求人工复核" : "Request human review"}</summary><form data-review-appeal data-review-id="${escapeHtml(item.id)}" data-revision="${item.content_revision}"><div class="field"><label for="appeal-${escapeHtml(item.id)}">${zh ? "复核说明" : "Review request"}</label><textarea id="appeal-${escapeHtml(item.id)}" name="note" required maxlength="2000" rows="3"></textarea></div><p class="form-error error" role="alert" tabindex="-1" hidden></p><button class="button secondary compact" type="submit">${zh ? "提交复核申请" : "Send request"}</button></form></details>` : "";
+    return detail + context + appeal;
+  }
+
   async function renderMine(version) {
     if (!session) { gated(t("mine"), t("loginRequired")); return; }
-    const { data, error } = await db.from("reviews").select(OWN_REVIEW_FIELDS).eq("reviewer_id", session.user.id).order("updated_at", { ascending: false });
+    const { data, error } = await db.rpc("my_course_reviews");
     if (error) throw error;
     if (version !== renderVersion) return;
     const items = data || [];
-    main.innerHTML = `<div class="page-heading"><div><p class="eyebrow">YOUR CONTRIBUTIONS</p><h1>${escapeHtml(t("mine"))}</h1><p class="subtext">${language === "zh" ? "投稿只有审核通过后才对其他访客公开。编辑会重新进入审核。" : "Contributions become public only after approval. Editing sends them back for review."}</p></div><a class="button" href="./#/share">${escapeHtml(t("share"))}</a></div>
+    main.innerHTML = `<div class="page-heading"><div><p class="eyebrow">YOUR CONTRIBUTIONS</p><h1>${escapeHtml(t("mine"))}</h1><p class="subtext">${language === "zh" ? "投稿审核通过后公开。修改会重新审核；此前已确认豁免的历史投稿除外。" : "Contributions become public after approval. Edits are reviewed again, except for the confirmed historical reviews."}</p></div><a class="button" href="./#/share">${escapeHtml(t("share"))}</a></div>
       ${items.length ? items.map((item) => {
         const title = item.course_id ? courses.find((course) => course.id === item.course_id)?.title || (language === "zh" ? "课程" : "Course") : item.suggested_course_title || (language === "zh" ? "新课程建议" : "Proposed course");
-        return `<article class="submission"><div><span class="pill ${item.status === "published" ? "green" : item.status === "pending" ? "amber" : ""}">${escapeHtml(t(item.status) || item.status)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(model.termLabel(item.term, language))} · ${escapeHtml(String(item.experience || "").slice(0, 200))}</p></div><div class="submission-actions">${button(`edit-review:${item.id}`, t("edit"), "button secondary compact")}${item.course_id ? link(`./#/course/${encodeURIComponent(item.course_id)}`, language === "zh" ? "课程页" : "Course page") : ""}</div></article>`;
+        return `<article class="submission"><div><span class="pill ${item.status === "published" ? "green" : item.status === "pending" ? "amber" : ""}">${escapeHtml(reviewFeedback.status(item, language) || t(item.status) || item.status)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(model.termLabel(item.term, language))} · ${escapeHtml(String(item.experience || "").slice(0, 200) + (String(item.experience || "").length > 200 ? "…" : ""))}</p>${moderationMarkup(item)}</div><div class="submission-actions">${button(`edit-review:${item.id}`, t("edit"), "button secondary compact")}${item.course_id ? link(`./#/course/${encodeURIComponent(item.course_id)}`, language === "zh" ? "课程页" : "Course page") : ""}</div></article>`;
       }).join("") : `<div class="empty-state"><h2>${escapeHtml(t("noMine"))}</h2><a class="button" href="./#/share">${escapeHtml(t("share"))}</a></div>`}`;
   }
 
@@ -449,7 +458,8 @@
   async function renderShare(editId = "", version) {
     if (!session) { gated(t("share"), t("loginRequired")); return; }
     await getProfile();
-    const editing = editId ? await db.from("reviews").select(OWN_REVIEW_FIELDS).eq("id", editId).eq("reviewer_id", session.user.id).maybeSingle() : { data: null, error: null };
+    const editingResult = editId ? await db.rpc("my_course_reviews", { p_id: editId }) : { data: [], error: null };
+    const editing = { data: editingResult.data?.[0] || null, error: editingResult.error };
     if (editing.error) throw editing.error;
     if (version !== renderVersion) return;
     if (editId && !editing.data) { main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2></div>`; return; }
@@ -461,8 +471,8 @@
     const storedTerm = model.normalizeTerm(current?.term);
     const otherTerm = storedTerm && !model.terms.some((term) => term.value === storedTerm) ? storedTerm : "";
     const selectedTerm = otherTerm ? "other" : storedTerm;
-    main.innerHTML = `<div class="page-heading"><div><p class="eyebrow">CONTRIBUTE</p><h1>${escapeHtml(current ? t("edit") : t("share"))}</h1><p class="subtext">${language === "zh" ? "内容先进入待审核。课程信息与第一条体验会一起审核。" : "Your contribution enters review first. New course details and the first experience are reviewed together."}</p></div></div>
-      <form id="review-form" class="form-shell" data-edit-id="${escapeHtml(editId)}">
+    main.innerHTML = `<div class="page-heading"><div><p class="eyebrow">CONTRIBUTE</p><h1>${escapeHtml(current ? t("edit") : t("share"))}</h1><p class="subtext">${language === "zh" ? (current?.historical_exempt ? "这条历史投稿已豁免，保存修改后继续公开。" : "内容先进入待审核。课程信息与第一条体验会一起审核。") : (current?.historical_exempt ? "This historical review is exempt and stays public after you save." : "Your contribution enters review first. New course details and the first experience are reviewed together.")}</p></div></div>
+      <form id="review-form" class="form-shell" data-edit-id="${escapeHtml(editId)}" data-revision="${current?.content_revision || ""}">
         <section class="panel"><h2>${escapeHtml(t("existingCourse"))}</h2><label class="radio"><input type="radio" name="course_mode" value="existing" ${!isNewCourse ? "checked" : ""}><span><strong>${escapeHtml(t("existingCourse"))}</strong><small>${language === "zh" ? "选择已收录的课程" : "Choose a listed course"}</small></span></label><div class="field"><label for="course-id">${escapeHtml(t("selectCourse"))}</label><select id="course-id" name="course_id"><option value="" ${selectedCourse ? "" : "selected"}>${language === "zh" ? "请选择课程" : "Choose a course"}</option>${courses.map((course) => `<option value="${escapeHtml(course.id)}" ${selectedCourse === course.id ? "selected" : ""}>${escapeHtml(course.title)} · ${escapeHtml(model.providerLabel(course.provider, language))}</option>`).join("")}</select></div>
           <label class="radio"><input type="radio" name="course_mode" value="new" ${isNewCourse ? "checked" : ""}><span><strong>${escapeHtml(t("newCourse"))}</strong><small>${language === "zh" ? "课程和体验会共同待审；审核通过后加入目录。" : "The course and experience are reviewed together and then added to the catalog."}</small></span></label>
           <div id="new-course-fields" class="field-grid" ${isNewCourse ? "" : "hidden"}>${formField(t("courseTitle"), "suggested_course_title", { value: current?.suggested_course_title, required: true })}<div class="field"><label for="suggested-course-provider">${escapeHtml(t("provider"))}</label><select name="suggested_course_provider" id="suggested-course-provider" required><option value="">—</option>${model.providers.map((p) => `<option value="${p}" ${selectedProvider === p ? "selected" : ""}>${escapeHtml(model.providerLabel(p, language))}</option>`).join("")}</select></div>${formField(t("courseCode"), "suggested_course_code", { value: current?.suggested_course_code, optional: true })}${formField(t("credits"), "suggested_course_credits", { value: current?.suggested_course_credits, type: "number", optional: true })}<div class="field"><label for="suggested-course-language">${escapeHtml(t("language"))}</label><select id="suggested-course-language" name="suggested_course_language"><option value="">—</option>${["English", "Japanese", "Chinese", "Other"].map((p) => `<option ${current?.suggested_course_language === p ? "selected" : ""}>${p}</option>`).join("")}</select></div>${formField(t("syllabusUrls"), "suggested_course_syllabus_urls", { value: (current?.suggested_course_syllabus_urls || []).join("\n") || current?.suggested_course_syllabus_url || "", textarea: true, optional: true, max: 1000 })}<p class="hint">${language === "zh" ? "粘贴官方课程链接；有多个链接时每行一个。" : "Paste official course links, one URL per line."}</p></div>
@@ -481,7 +491,7 @@
           <label class="check"><input type="checkbox" name="share_background" ${current?.share_background ? "checked" : ""}><span><strong>${escapeHtml(t("shareBackground"))}</strong><small>${escapeHtml(t("contextAuthor"))}</small></span></label>
           ${current?.status ? `<p class="notice">${escapeHtml(t("status"))}: ${escapeHtml(t(current.status) || current.status)}${current.status === "published" && current.updated_at ? ` · ${escapeHtml(shortDate(current.updated_at))}` : ""}</p>` : ""}
         </section>
-        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/mine">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(current ? t("saveReview") : t("submit"))}</button></div>
+        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/mine">${escapeHtml(t("cancel"))}</a><button class="button" type="submit">${escapeHtml(current?.historical_exempt ? (language === "zh" ? "保存修改" : "Save changes") : current ? t("saveReview") : t("submit"))}</button></div>
       </form>`;
     toggleNewCourseFields();
     toggleTermField();
@@ -627,13 +637,13 @@
     const payload = model.reviewPayload(Object.fromEntries(values), profile, session?.user.id, language);
     const editId = form.dataset.editId;
     const result = editId
-      ? await db.from("reviews").update(payload).eq("id", editId).eq("reviewer_id", session.user.id).select("id").maybeSingle()
+      ? await db.rpc("edit_my_course_review", { p_id: editId, p_revision: Number(form.dataset.revision), p_payload: payload })
       : await db.from("reviews").insert(payload).select("id").single();
     if (result.error) throw result.error;
     if (!result.data?.id) throw new Error(t("notReady"));
     catalogLoadedAt = 0;
     clearFormDraft();
-    toast(editId ? t("updated") : t("reviewSaved"));
+    toast(editId ? (language === "zh" ? "修改已保存，请查看当前审核状态。" : "Changes saved. Check the current review status.") : t("reviewSaved"));
     window.location.hash = "/mine";
   }
 
@@ -679,7 +689,7 @@
 
   document.addEventListener("submit", async (event) => {
     if (event.target.id === "browse-filters") { event.preventDefault(); readBrowseFilters(); renderBrowse(); return; }
-    if (event.target.id !== "profile-form" && event.target.id !== "review-form") return;
+    if (event.target.id !== "profile-form" && event.target.id !== "review-form" && !event.target.matches("[data-review-appeal]")) return;
     event.preventDefault();
     const form = event.target;
     const values = new FormData(form);
@@ -692,10 +702,15 @@
     controls.forEach(([control]) => { control.disabled = true; });
     form.setAttribute("aria-busy", "true");
     try {
-      if (form.id === "profile-form") await handleProfileSubmit(form, values);
+      if (form.matches("[data-review-appeal]")) {
+        const { error } = await db.rpc("request_course_review_human", { p_id: form.dataset.reviewId, p_revision: Number(form.dataset.revision), p_note: String(values.get("note") || "").trim() });
+        if (error) throw error;
+        toast(language === "zh" ? "人工复核申请已收到。" : "Your request for human review has been received.");
+        await render();
+      } else if (form.id === "profile-form") await handleProfileSubmit(form, values);
       else await handleReviewSubmit(form, values);
     } catch (error) {
-      const message = t(error.code) || error.message || t("notReady");
+      const message = error.code === "40001" ? (language === "zh" ? "这条投稿已更新，请刷新后再编辑。" : "This contribution has changed. Reload before editing.") : t(error.code) || error.message || t("notReady");
       if (errorNode) { errorNode.textContent = message; errorNode.hidden = false; errorNode.focus(); }
       else fail(error);
     } finally {
