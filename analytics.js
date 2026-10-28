@@ -5,6 +5,7 @@
   let language=localStorage.getItem('odyssey-community-language')==='en'?'en':'zh',session=null,authorized=false,generation=0;
   const day=value=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(value);
   let start=day(new Date(Date.now()-29*86400000)),end=day(new Date()),includeTest=false;
+  let view="metrics",profilePage=0;
   const zh=()=>language==='zh';
   const text=(cn,en)=>zh()?cn:en;
   const count=value=>Number(value||0).toLocaleString(zh()?'zh-CN':'en');
@@ -18,7 +19,12 @@
     main.innerHTML=`<div class="empty-state"><p class="eyebrow">ADMIN ANALYTICS</p><h1>${text('数据概览','Site analytics')}</h1><p>${escape(message)}</p>${!session?`<button class="button" type="button" data-signin>${text('使用 Google 继续','Continue with Google')}</button>`:''}<p><a class="text-link" href="./#/browse">${text('返回课程浏览','Back to courses')}</a></p></div>`;
   }
   function shell(){
-    main.innerHTML=`<p class="eyebrow">ADMIN ANALYTICS · JST</p><h1>${text('网站数据概览','Site analytics')}</h1><p class="subtext">${text('仅管理员可见。按日本时间查看访问、阅读与贡献情况。','Administrator access only. Views, reading, and contributions, grouped by Japan time.')}</p><form id="metrics-filters" class="panel metrics-filters"><div class="field"><label for="metrics-start">${text('开始日期','Start date')}</label><input id="metrics-start" name="start" type="date" required value="${start}"></div><div class="field"><label for="metrics-end">${text('结束日期','End date')}</label><input id="metrics-end" name="end" type="date" required value="${end}"></div><label class="check"><input type="checkbox" name="include_test" ${includeTest?'checked':''}><span>${text('包含测试流量','Include test traffic')}</span></label><button class="button" type="submit">${text('刷新数据','Refresh')}</button></form><p id="metrics-status" class="metrics-status" role="status"></p><section id="metrics-report"></section>`;
+    const tabs=`<nav class="admin-views" aria-label="${text('管理员页面','Administrator pages')}"><button type="button" class="button ${view==='metrics'?'':'secondary'}" data-admin-view="metrics" aria-pressed="${view==='metrics'}">${text('访问统计','Site analytics')}</button><button type="button" class="button ${view==='profiles'?'':'secondary'}" data-admin-view="profiles" aria-pressed="${view==='profiles'}">${text('用户资料','User profiles')}</button></nav>`;
+    if(view==='profiles'){
+      main.innerHTML=`${tabs}<p class="eyebrow">ADMIN · USER PROFILES</p><h1>${text('用户资料','User profiles')}</h1><p class="subtext">${text('仅管理员可见，包括未公开的已保存资料与照片。尚未填写的内容显示为未填写。','Administrator access only, including saved private details and photos. Missing details are marked as not provided.')}</p><button type="button" class="button secondary" data-profiles-refresh>${text('刷新资料','Refresh profiles')}</button><p id="profiles-status" role="status"></p><section id="profiles-report"></section>`;
+      return;
+    }
+    main.innerHTML=tabs+`<p class="eyebrow">ADMIN ANALYTICS · JST</p><h1>${text('网站数据概览','Site analytics')}</h1><p class="subtext">${text('仅管理员可见。按日本时间查看访问、阅读与贡献情况。','Administrator access only. Views, reading, and contributions, grouped by Japan time.')}</p><form id="metrics-filters" class="panel metrics-filters"><div class="field"><label for="metrics-start">${text('开始日期','Start date')}</label><input id="metrics-start" name="start" type="date" required value="${start}"></div><div class="field"><label for="metrics-end">${text('结束日期','End date')}</label><input id="metrics-end" name="end" type="date" required value="${end}"></div><label class="check"><input type="checkbox" name="include_test" ${includeTest?'checked':''}><span>${text('包含测试流量','Include test traffic')}</span></label><button class="button" type="submit">${text('刷新数据','Refresh')}</button></form><p id="metrics-status" class="metrics-status" role="status"></p><section id="metrics-report"></section>`;
   }
   function render(report){
     const totals=report.totals;
@@ -40,6 +46,7 @@
   async function load(){
     const ticket=++generation;
     if(!authorized)return;
+    if(view==='profiles'){await loadProfiles(ticket);return;}
     const status=document.querySelector('#metrics-status'),button=document.querySelector('#metrics-filters button');
     status.textContent=text('正在读取…','Loading…');button.disabled=true;
     try{
@@ -50,6 +57,27 @@
     }catch(error){if(ticket===generation){document.querySelector('#metrics-report').innerHTML='';status.textContent=text('读取失败，请检查日期范围（最多366天）与管理员登录状态后重试。','Could not load. Check the date range (up to 366 days), administrator access, and retry.');}}
     finally{if(ticket===generation)button.disabled=false;}
   }
+  async function loadProfiles(ticket){
+    const status=document.querySelector('#profiles-status'),report=document.querySelector('#profiles-report');
+    report.replaceChildren();status.textContent=text('正在读取…','Loading…');
+    try{
+      const {data,error}=await auth.client.rpc('admin_profile_directory',{p_limit:50,p_offset:profilePage*50});
+      if(error)throw error;
+      if(ticket!==generation||!authorized)return;
+      report.innerHTML=(data.profiles||[]).map(p=>`<article class="panel admin-profile" data-profile-id="${escape(p.id)}"><div class="admin-profile-photo">${p.avatar_path?text('正在加载照片…','Loading photo…'):text('未提供照片','No photo provided')}</div><div><h2>${escape(p.display_name||text('未填写昵称','Nickname not provided'))}</h2><p>${p.complete?text('资料完整','Complete'):text('资料待补齐','Incomplete')} · ${p.is_public?text('公开','Public'):text('私密','Private')} · ${p.show_on_wall?text('已上墙','On homepage wall'):text('未上墙','Off homepage wall')}</p><dl>${[[text('个人简介','Introduction'),p.bio],[text('修读项目／学部','Programme / school'),p.programme],[text('年级／届别','Year / cohort'),p.study_year]].map(([label,value])=>`<div><dt>${label}</dt><dd>${escape(value||text('未填写','Not provided'))}</dd></div>`).join('')}</dl><p class="hint">${text('账号标识','Account ID')}: ${escape(p.id)}</p></div></article>`).join('')||`<p>${text('暂无账号','No accounts')}</p>`;
+      const pager=document.createElement('div');pager.className='form-actions';
+      pager.innerHTML=`<button type="button" class="button secondary" data-profile-page="${profilePage-1}" ${profilePage===0?'disabled':''}>${text('上一页','Previous')}</button><span>${profilePage+1} / ${Math.max(1,Math.ceil(data.total/50))}</span><button type="button" class="button secondary" data-profile-page="${profilePage+1}" ${(profilePage+1)*50>=data.total?'disabled':''}>${text('下一页','Next')}</button>`;
+      report.append(pager);status.textContent=text('账号总数：','Total accounts: ')+count(data.total);
+      await Promise.all((data.profiles||[]).filter(p=>p.avatar_path).map(async p=>{
+        const {data:photo,error:photoError}=await auth.client.storage.from('reviewer-avatars').createSignedUrl(p.avatar_path,300);
+        if(ticket!==generation||!authorized)return;
+        const host=[...report.querySelectorAll('[data-profile-id]')].find(el=>el.dataset.profileId===p.id)?.querySelector('.admin-profile-photo');
+        if(!host)return;
+        if(photoError||!photo?.signedUrl){host.textContent=text('照片加载失败，请刷新重试','Photo failed to load. Refresh to retry.');return;}
+        const img=document.createElement('img');img.alt=text('用户自选照片','User-selected photo');img.src=photo.signedUrl;img.referrerPolicy='no-referrer';img.addEventListener('error',()=>{if(ticket===generation)host.textContent=text('照片加载失败，请刷新重试','Photo failed to load. Refresh to retry.');});host.replaceChildren(img);
+      }));
+    }catch(error){if(ticket===generation){report.replaceChildren();status.textContent=text('无法读取用户资料，请检查管理员登录状态并重试。','Could not load profiles. Check administrator access and retry.');}}
+  }
   async function show(next){
     const ticket=++generation;session=next||null;authorized=false;heading();
     if(!session){gate(text('登录管理员账号后查看。','Sign in with the administrator account.'));return;}
@@ -58,7 +86,13 @@
     catch{if(ticket===generation)gate(text('权限验证暂时不可用，请稍后刷新。','Access verification is unavailable. Please reload later.'));}
   }
   main.addEventListener('submit',event=>{if(event.target.id!=='metrics-filters')return;event.preventDefault();const values=new FormData(event.target);start=String(values.get('start'));end=String(values.get('end'));includeTest=values.has('include_test');void load();});
-  document.addEventListener('click',event=>{if(event.target.closest('[data-signin]'))auth.signInWithGoogle('analytics').catch(()=>gate(text('登录未完成，请重试。','Sign-in did not complete. Try again.')));if(event.target.closest('[data-signout]'))auth.signOut().catch(()=>{});});
+  document.addEventListener('click',event=>{
+    const switcher=event.target.closest('[data-admin-view]');
+    if(switcher&&authorized){view=switcher.dataset.adminView;shell();void load();return;}
+    if(event.target.closest('[data-profiles-refresh]')&&authorized){void load();return;}
+    const page=event.target.closest('[data-profile-page]');
+    if(page&&authorized){profilePage=Math.max(0,Number(page.dataset.profilePage));void load();return;}
+    if(event.target.closest('[data-signin]'))auth.signInWithGoogle('analytics').catch(()=>gate(text('登录未完成，请重试。','Sign-in did not complete. Try again.')));if(event.target.closest('[data-signout]'))auth.signOut().catch(()=>{});});
   document.querySelector('#language-toggle').addEventListener('click',()=>{language=zh()?'en':'zh';localStorage.setItem('odyssey-community-language',language);heading();if(authorized){shell();void load();}else void show(session);});
   if(!auth){gate(text('登录服务不可用，请刷新。','Authentication is unavailable. Reload to retry.'));return;}
   auth.ready.then(show);window.addEventListener('sils:auth',event=>{if(event.detail.session?.user.id!==session?.user.id)void show(event.detail.session);});

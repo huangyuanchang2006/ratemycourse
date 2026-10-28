@@ -6,6 +6,7 @@
   const auth = window.SILS_AUTH;
   const db = auth?.client;
   const model = window.SILS_COMMUNITY_MODEL;
+  const profilePolicy = window.SILS_PROFILE_POLICY;
   const PUBLIC_REVIEW_FIELDS = "id,course_id,suggested_course_title,suggested_course_provider,suggested_course_code,suggested_course_credits,suggested_course_language,suggested_course_syllabus_url,term,teacher,workload,group_work,assessment,fit,avoid,experience,notes,content_language,created_at,share_background,reviewer_programme,reviewer_year,reviewer_prior_knowledge,reviewer_selection_goal,public_display_name,public_avatar_path,public_avatar_crop,public_profile_id,legacy_source_id,legacy_source_url,legacy_offered_term,translation_en";
   const reviewFeedback = window.SILS_REVIEW_FEEDBACK;
   const COURSE_FIELDS = "id,course_code,title,provider,credits,language,syllabus_url,syllabus_urls,created_at,canonical_course_id";
@@ -13,10 +14,10 @@
   const BUCKET = "reviewer-avatars";
   const copy = {
     zh: {
-      browse: "课程浏览", mine: "我的投稿", profile: "个人名片", share: "分享课程体验", search: "搜索课程名、代码或学部", all: "全部学部", loading: "正在连接课程数据库…", empty: "还没有符合条件的课程。", add: "添加课程并分享体验", syllabus: "官方课程说明", syllabusUrls: "官方 Syllabus 链接（每行一个）", reviews: "条公开体验", noReviews: "这门课还没有公开评价。你可以分享第一条体验。", anonymous: "匿名投稿者", approved: "已发布", pending: "待审核", changes_requested: "需要修改", needs_human: "人工复核", withdrawn: "已撤回", workload: "课程负担", group: "小组合作", term: "修读学期", teacher: "教师", assessment: "考核方式", fit: "适合谁", avoid: "不适合谁", experience: "课程体验", notes: "补充说明", signIn: "使用 Google 继续", signedOut: "你已退出登录。", notReady: "连接失败。请稍后重试。", authError: "登录未完成，请重试。", loginRequired: "登录后可提交课程体验并管理自己的投稿。", submit: "提交审核", save: "保存资料", saveReview: "保存修改并重新审核", cancel: "返回", edit: "编辑", profilePrivate: "个人名片目前未公开。", noMine: "你还没有投稿。", displayName: "公开显示名", programme: "修读项目／学部", studyYear: "修读时年级", priorKnowledge: "相关知识基础", selectionGoal: "当时选课目标", bio: "个人简介", publicProfile: "公开个人名片", avatar: "个人照片", choosePhoto: "选择照片", removePhoto: "移除照片", uploadHint: "JPG、PNG 或 WebP，最大 5 MB。照片不会自动从 Google 导入。", saveHint: "资料和头像只在你保存后才上传。关闭公开名片后，读者无法打开名片。", showName: "在这条体验上显示我的显示名", showAvatar: "在这条体验上显示我的照片", showProfile: "允许读者打开我的公开名片", shareBackground: "随这条体验公开上述修课背景", newCourse: "这是一门尚未收录的课程", courseTitle: "课程名称", provider: "学部／项目", courseCode: "课程代码", credits: "学分", language: "授课语言", syllabusUrl: "官方 Syllabus 链接", existingCourse: "已收录课程", selectCourse: "选择一门课程", groupChoices: ["没有", "有一些", "很多", "视课程而异"], workloadNames: ["很轻", "较轻", "中等", "较重", "很重"], status: "审核状态", openProfile: "查看公开名片", profileSaved: "个人资料已保存。", reviewSaved: "投稿已提交审核。", updated: "修改已提交并重新进入审核。", photoRemoved: "照片已移除。", photoError: "请选择 JPG、PNG 或 WebP，且文件小于 5 MB。", required: "请填写课程、学期、课程体验，并选择课程负担与小组合作情况。", ownProfile: "先补充公开显示名，才能在投稿中选择显示姓名。", profilePhoto: "先上传照片，才能在投稿中选择显示照片。", publicProfileNeeded: "先公开个人名片，才能添加名片入口。", contextAuthor: "以下背景由作者自述，不代表学校核验。", serverError: "数据库操作失败：", backToBrowse: "返回课程浏览", newPhoto: "待保存照片已选好。保存资料后上传。", noPhoto: "尚未选择照片。", returnSite: "返回选课工作台"
+      browse: "课程浏览", mine: "我的投稿", profile: "个人名片", share: "分享课程体验", search: "搜索课程名、代码或学部", all: "全部学部", loading: "正在连接课程数据库…", empty: "还没有符合条件的课程。", add: "添加课程并分享体验", syllabus: "官方课程说明", syllabusUrls: "官方 Syllabus 链接（每行一个）", reviews: "条公开体验", noReviews: "这门课还没有公开评价。你可以分享第一条体验。", anonymous: "匿名投稿者", approved: "已发布", pending: "待审核", changes_requested: "需要修改", needs_human: "人工复核", withdrawn: "已撤回", workload: "课程负担", group: "小组合作", term: "修读学期", teacher: "教师", assessment: "考核方式", fit: "适合谁", avoid: "不适合谁", experience: "课程体验", notes: "补充说明", signIn: "使用 Google 继续", signedOut: "你已退出登录。", notReady: "连接失败。请稍后重试。", authError: "登录未完成，请重试。", loginRequired: "登录后可提交课程体验并管理自己的投稿。", submit: "提交审核", save: "保存资料", saveReview: "保存修改并重新审核", cancel: "返回", edit: "编辑", profilePrivate: "个人名片目前未公开。", noMine: "你还没有投稿。", displayName: "昵称", programme: "修读项目／学部", studyYear: "修读时年级", priorKnowledge: "相关知识基础", selectionGoal: "当时选课目标", bio: "个人简介", publicProfile: "公开个人名片", avatar: "个人照片", choosePhoto: "选择照片", removePhoto: "移除照片", uploadHint: "JPG、PNG 或 WebP，最大 5 MB。照片不会自动从 Google 导入。", saveHint: "资料和头像只在你保存后才上传。关闭公开名片后，读者无法打开名片。", showName: "在这条体验上显示我的昵称", showAvatar: "在这条体验上显示我的照片", showProfile: "允许读者打开我的公开名片", shareBackground: "随这条体验公开上述修课背景", newCourse: "这是一门尚未收录的课程", courseTitle: "课程名称", provider: "学部／项目", courseCode: "课程代码", credits: "学分", language: "授课语言", syllabusUrl: "官方 Syllabus 链接", existingCourse: "已收录课程", selectCourse: "选择一门课程", groupChoices: ["没有", "有一些", "很多", "视课程而异"], workloadNames: ["很轻", "较轻", "中等", "较重", "很重"], status: "审核状态", openProfile: "查看公开名片", profileSaved: "个人资料已保存。", reviewSaved: "投稿已提交审核。", updated: "修改已提交并重新进入审核。", photoRemoved: "照片已移除。", photoError: "请选择 JPG、PNG 或 WebP，且文件小于 5 MB。", required: "请填写课程、学期、课程体验，并选择课程负担与小组合作情况。", ownProfile: "先补充昵称，才能在投稿中选择显示姓名。", profilePhoto: "先上传照片，才能在投稿中选择显示照片。", publicProfileNeeded: "先公开个人名片，才能添加名片入口。", contextAuthor: "以下背景由作者自述，不代表学校核验。", serverError: "数据库操作失败：", backToBrowse: "返回课程浏览", newPhoto: "待保存照片已选好。保存资料后上传。", noPhoto: "尚未选择照片。", returnSite: "返回选课工作台"
     },
     en: {
-      browse: "Browse courses", mine: "My contributions", profile: "Profile card", share: "Share an experience", search: "Search course, code, or programme", all: "All programmes", loading: "Connecting to the course database…", empty: "No courses match your search.", add: "Add a course and share an experience", syllabus: "Official syllabus", syllabusUrls: "Official syllabus URLs (one per line)", reviews: " published experience(s)", noReviews: "No public reviews yet. Share the first experience.", anonymous: "Anonymous contributor", approved: "Published", pending: "Pending review", changes_requested: "Changes requested", needs_human: "Needs human review", withdrawn: "Withdrawn", workload: "Workload", group: "Group work", term: "Term taken", teacher: "Instructor", assessment: "Assessment", fit: "Good fit for", avoid: "May not fit", experience: "Course experience", notes: "Additional notes", signIn: "Continue with Google", signedOut: "You have signed out.", notReady: "Could not connect. Please try again later.", authError: "Sign-in did not complete. Please try again.", loginRequired: "Sign in to submit a course experience and manage your contributions.", submit: "Submit for review", save: "Save profile", saveReview: "Save changes and resubmit", cancel: "Back", edit: "Edit", profilePrivate: "This profile card is not public.", noMine: "You have not submitted anything yet.", displayName: "Public display name", programme: "Programme / school", studyYear: "Year when taken", priorKnowledge: "Relevant prior knowledge", selectionGoal: "Your goal when choosing the course", bio: "Short introduction", publicProfile: "Make my profile card public", avatar: "Profile photo", choosePhoto: "Choose a photo", removePhoto: "Remove photo", uploadHint: "JPG, PNG, or WebP, up to 5 MB. Your Google photo is never imported automatically.", saveHint: "Your details and photo upload only when you save. Readers cannot open your card while it is private.", showName: "Show my display name on this experience", showAvatar: "Show my photo on this experience", showProfile: "Let readers open my public profile card", shareBackground: "Share the course background above with this experience", newCourse: "This course is not listed yet", courseTitle: "Course title", provider: "Programme", courseCode: "Course code", credits: "Credits", language: "Teaching language", syllabusUrl: "Official syllabus URL", existingCourse: "Listed course", selectCourse: "Choose a course", groupChoices: ["None", "Some", "Heavy", "Varies"], workloadNames: ["Very light", "Light", "Moderate", "Heavy", "Very heavy"], status: "Status", openProfile: "View profile card", profileSaved: "Profile saved.", reviewSaved: "Your contribution is awaiting review.", updated: "Changes saved and resubmitted for review.", photoRemoved: "Photo removed.", photoError: "Choose a JPG, PNG, or WebP file under 5 MB.", required: "Choose a course, term, workload and group-work level, and describe your experience.", ownProfile: "Add a display name in your profile before choosing to show it on a review.", profilePhoto: "Upload a photo before choosing to show it on a review.", publicProfileNeeded: "Make your profile public before adding a profile link.", contextAuthor: "The author supplied this background. It is not school-verified.", serverError: "Database request failed: ", backToBrowse: "Back to courses", newPhoto: "Photo selected. Save your profile to upload it.", noPhoto: "No photo selected.", returnSite: "Back to course workbench"
+      browse: "Browse courses", mine: "My contributions", profile: "Profile card", share: "Share an experience", search: "Search course, code, or programme", all: "All programmes", loading: "Connecting to the course database…", empty: "No courses match your search.", add: "Add a course and share an experience", syllabus: "Official syllabus", syllabusUrls: "Official syllabus URLs (one per line)", reviews: " published experience(s)", noReviews: "No public reviews yet. Share the first experience.", anonymous: "Anonymous contributor", approved: "Published", pending: "Pending review", changes_requested: "Changes requested", needs_human: "Needs human review", withdrawn: "Withdrawn", workload: "Workload", group: "Group work", term: "Term taken", teacher: "Instructor", assessment: "Assessment", fit: "Good fit for", avoid: "May not fit", experience: "Course experience", notes: "Additional notes", signIn: "Continue with Google", signedOut: "You have signed out.", notReady: "Could not connect. Please try again later.", authError: "Sign-in did not complete. Please try again.", loginRequired: "Sign in to submit a course experience and manage your contributions.", submit: "Submit for review", save: "Save profile", saveReview: "Save changes and resubmit", cancel: "Back", edit: "Edit", profilePrivate: "This profile card is not public.", noMine: "You have not submitted anything yet.", displayName: "Nickname", programme: "Programme / school", studyYear: "Year when taken", priorKnowledge: "Relevant prior knowledge", selectionGoal: "Your goal when choosing the course", bio: "Short introduction", publicProfile: "Make my profile card public", avatar: "Profile photo", choosePhoto: "Choose a photo", removePhoto: "Remove photo", uploadHint: "JPG, PNG, or WebP, up to 5 MB. Your Google photo is never imported automatically.", saveHint: "Your details and photo upload only when you save. Readers cannot open your card while it is private.", showName: "Show my nickname on this experience", showAvatar: "Show my photo on this experience", showProfile: "Let readers open my public profile card", shareBackground: "Share the course background above with this experience", newCourse: "This course is not listed yet", courseTitle: "Course title", provider: "Programme", courseCode: "Course code", credits: "Credits", language: "Teaching language", syllabusUrl: "Official syllabus URL", existingCourse: "Listed course", selectCourse: "Choose a course", groupChoices: ["None", "Some", "Heavy", "Varies"], workloadNames: ["Very light", "Light", "Moderate", "Heavy", "Very heavy"], status: "Status", openProfile: "View profile card", profileSaved: "Profile saved.", reviewSaved: "Your contribution is awaiting review.", updated: "Changes saved and resubmitted for review.", photoRemoved: "Photo removed.", photoError: "Choose a JPG, PNG, or WebP file under 5 MB.", required: "Choose a course, term, workload and group-work level, and describe your experience.", ownProfile: "Add a nickname in your profile before choosing to show it on a review.", profilePhoto: "Upload a photo before choosing to show it on a review.", publicProfileNeeded: "Make your profile public before adding a profile link.", contextAuthor: "The author supplied this background. It is not school-verified.", serverError: "Database request failed: ", backToBrowse: "Back to courses", newPhoto: "Photo selected. Save your profile to upload it.", noPhoto: "No photo selected.", returnSite: "Back to course workbench"
     }
   };
 
@@ -60,8 +61,8 @@
   let metricsAdmin = false;
   let metricsAccountId;
   const sourceLanguages = { zh: { zh: "中文", en: "英语", ja: "日语", mixed: "多种语言", other: "其他语言" }, en: { zh: "Chinese", en: "English", ja: "Japanese", mixed: "Multiple languages", other: "Another language" } };
-  Object.assign(copy.zh, { profileStudyStage: "年级／届别（自述）", invalidContentLanguage: "请选择评价原文使用的语言。", wallNameRequired: "加入名片墙前，请填写公开显示名。" });
-  Object.assign(copy.en, { profileStudyStage: "Year / cohort (self-reported)", invalidContentLanguage: "Choose the original language of your review.", wallNameRequired: "Add a public display name before joining the contributor wall." });
+  Object.assign(copy.zh, { profileStudyStage: "年级／届别（自述）", invalidContentLanguage: "请选择评价原文使用的语言。", wallNameRequired: "加入名片墙前，请填写昵称。" });
+  Object.assign(copy.en, { profileStudyStage: "Year / cohort (self-reported)", invalidContentLanguage: "Choose the original language of your review.", wallNameRequired: "Add a nickname before joining the contributor wall." });
   let loginTarget = "";
 
   const t = (key) => copy[language][key === "published" ? "approved" : key];
@@ -418,15 +419,24 @@
   }
 
   function profileFormMarkup() {
-    return `<div class="page-heading"><div><p class="eyebrow">YOUR OPTIONAL PROFILE</p><h1>${escapeHtml(t("profile"))}</h1><p class="subtext">${language === "zh" ? "姓名、背景和照片均为可选自述；Google 不会自动提供或公开这些内容。" : "Your name, background, and photo are optional and self-reported. Google details are never imported or published automatically."}</p></div></div>
+    const visibility = profilePolicy.defaults(profile);
+    const onboarding = route().params.has("onboarding");
+    return `<div class="page-heading"><div><p class="eyebrow">${onboarding ? "COMPLETE YOUR PROFILE" : "YOUR PROFILE"}</p><h1>${language === "zh" ? (onboarding ? "完善个人资料" : "个人名片") : (onboarding ? "Complete your profile" : "Profile card")}</h1><p class="subtext">${language === "zh" ? "请填写以下五项资料，完成后即可分享课程体验。资料由你自行填写，照片也可以使用插画或风景图。" : "Complete these five required details before sharing a course experience. Use a nickname and any photo or illustration you choose."}</p></div></div>
       <div class="detail-layout profile-editor-layout"><section class="form-shell"><form id="profile-form" class="panel">
-        <div class="field"><label for="profile-name">${escapeHtml(t("displayName"))}</label><input id="profile-name" name="display_name" type="text" maxlength="60" value="${escapeHtml(profile?.display_name || "")}" placeholder="${language === "zh" ? "可留空；投稿可匿名" : "Optional; reviews can be anonymous"}"></div>
-        <div class="field"><label for="profile-bio">${escapeHtml(t("bio"))}</label><textarea id="profile-bio" name="bio" maxlength="500">${escapeHtml(profile?.bio || "")}</textarea></div>
-        <details class="profile-background"><summary>${language === "zh" ? "已有背景资料" : "Background details"}</summary><p class="hint">${language === "zh" ? "这些是当前个人资料。每条体验的修课背景单独填写。" : "These are your current profile details. Course backgrounds are entered separately for each experience."}</p><div class="field-grid"><div class="field"><label for="profile-programme">${escapeHtml(t("programme"))}</label><input id="profile-programme" name="programme" maxlength="100" value="${escapeHtml(profile?.programme || "")}"></div><div class="field"><label for="profile-year">${escapeHtml(t("profileStudyStage"))}</label><input id="profile-year" name="study_year" maxlength="60" value="${escapeHtml(profile?.study_year || "")}"></div><div class="field"><label for="profile-prior">${escapeHtml(t("priorKnowledge"))}</label><textarea id="profile-prior" name="prior_knowledge" maxlength="500">${escapeHtml(profile?.prior_knowledge || "")}</textarea></div><div class="field"><label for="profile-goal">${escapeHtml(t("selectionGoal"))}</label><textarea id="profile-goal" name="selection_goal" maxlength="500">${escapeHtml(profile?.selection_goal || "")}</textarea></div></div></details>
+        <p class="hint">${language === "zh" ? "五项均为必填；相关知识基础和选课目标仍为可选。" : "All five details are required; prior knowledge and course-selection goals remain optional."}</p>
+        <div class="field"><label for="profile-name">${escapeHtml(t("displayName"))} *</label><input id="profile-name" name="display_name" type="text" required maxlength="60" value="${escapeHtml(profile?.display_name || "")}" placeholder="${language === "zh" ? "填写你希望使用的昵称，无需真实姓名" : "Choose a nickname; your real name is not required"}"></div>
+        <div class="field"><label for="profile-bio">${escapeHtml(t("bio"))} *</label><textarea id="profile-bio" name="bio" required maxlength="500">${escapeHtml(profile?.bio || "")}</textarea></div>
+        <div class="field-grid"><div class="field"><label for="profile-programme">${escapeHtml(t("programme"))} *</label><input id="profile-programme" name="programme" required maxlength="100" value="${escapeHtml(profile?.programme || "")}" placeholder="${language === "zh" ? "例如：SILS／商学部／CJL" : "e.g. SILS / School of Commerce / CJL"}"></div><div class="field"><label for="profile-year">${escapeHtml(t("profileStudyStage"))} *</label><input id="profile-year" name="study_year" required maxlength="60" value="${escapeHtml(profile?.study_year || "")}" placeholder="${language === "zh" ? "例如：大二／2026年春入学" : "e.g. Year 2 / Spring 2026 entry"}"></div></div>
+        <p class="hint">${language === "zh" ? "以上是当前个人资料；每条评价的实际修课年级及背景单独填写。" : "These are your current details. Enter the year and background for each course separately in its review."}</p>
         ${photos.markup(language)}
-        <label class="check"><input type="checkbox" name="is_public" ${profile?.is_public ? "checked" : ""}><span><strong>${escapeHtml(t("publicProfile"))}</strong><small>${escapeHtml(t("saveHint"))}</small></span></label>
-        <label class="check"><input type="checkbox" name="show_on_wall" ${profile?.show_on_wall ? "checked" : ""} ${profile?.is_public ? "" : "disabled"}><span><strong>${language === "zh" ? "在首页分享者名片墙展示我的公开名片" : "Show my public profile on the homepage contributor wall"}</strong><small>${language === "zh" ? "需同时公开个人名片并填写显示名。读者可查看你的署名或已关联名片的公开体验；匿名投稿不会因此公开身份。取消后，名片将从墙上撤下。" : "Requires a public profile and display name. Readers can explore your named or profile-linked public experiences. Anonymous reviews stay anonymous. Uncheck to remove your card from the wall."}</small></span></label>
-        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/browse">${escapeHtml(t("cancel"))}</a><button class="button secondary" type="button" data-photo-action="preview">${language === "zh" ? "预览公开效果" : "Preview public appearance"}</button><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
+        <details class="profile-background"><summary>${language === "zh" ? "补充背景（可选）" : "Additional background (optional)"}</summary><p class="hint">${language === "zh" ? "填写后也会按下方的名片公开设置展示。" : "If supplied, these details follow your profile visibility setting below."}</p><div class="field-grid"><div class="field"><label for="profile-prior">${escapeHtml(t("priorKnowledge"))}</label><textarea id="profile-prior" name="prior_knowledge" maxlength="500">${escapeHtml(profile?.prior_knowledge || "")}</textarea></div><div class="field"><label for="profile-goal">${escapeHtml(t("selectionGoal"))}</label><textarea id="profile-goal" name="selection_goal" maxlength="500">${escapeHtml(profile?.selection_goal || "")}</textarea></div></div></details>
+        <section class="profile-visibility" aria-labelledby="profile-visibility-title"><h2 id="profile-visibility-title">${language === "zh" ? "保存后的公开范围" : "Visibility after saving"}</h2>
+        <label class="check"><input type="checkbox" name="make_private" ${visibility.is_public ? "" : "checked"}><span><strong>${language === "zh" ? "不公开我的个人名片" : "Keep my profile card private"}</strong><small>${language === "zh" ? "勾选后，名片资料和照片仅本人及网站管理员可查看，也不展示在首页名片墙。" : "When checked, only you and the site administrator can view your profile details and photo. Your card stays off the homepage wall."}</small></span></label>
+        <input type="hidden" name="wall_preference" value="${visibility.show_on_wall || !visibility.is_public ? "true" : "false"}">
+        <input type="checkbox" name="is_public" hidden ${visibility.is_public ? "checked" : ""}>
+        <label class="check" ${profile ? "" : "hidden"}><input type="checkbox" name="show_on_wall" data-preferred="${visibility.show_on_wall}" ${visibility.show_on_wall ? "checked" : ""} ${visibility.is_public ? "" : "disabled"}><span>${language === "zh" ? "在首页名片墙展示（保留你已有的选择）" : "Show on the homepage wall (your existing choice)"}</span></label>
+        <p id="profile-visibility-status" class="notice" role="status"></p><p class="hint">${language === "zh" ? "无论是否公开，网站管理员都可查看你已保存的资料和照片。每条课程评价仍可单独选择匿名。" : "The site administrator can view your saved details and photo whether your card is public or private. Each course review can still be anonymous."}</p></section>
+        <p class="form-error error" role="alert" tabindex="-1" hidden></p><div class="form-actions"><a class="text-link" href="./#/browse">${language === "zh" ? "先浏览课程" : "Browse courses for now"}</a><button class="button secondary" type="button" data-photo-action="preview">${language === "zh" ? "预览公开效果" : "Preview public appearance"}</button><button class="button" type="submit">${escapeHtml(t("save"))}</button></div>
       </form></section><aside>${photos.previewMarkup(language)}</aside></div>`;
   }
 
@@ -458,6 +468,11 @@
   async function renderShare(editId = "", version) {
     if (!session) { gated(t("share"), t("loginRequired")); return; }
     await getProfile();
+    if (!profilePolicy.complete(profile)) {
+      const target = `./${window.location.hash || "#/share"}`;
+      window.location.hash = `/profile?onboarding=1&return=${encodeURIComponent(target)}`;
+      return;
+    }
     const editingResult = editId ? await db.rpc("my_course_reviews", { p_id: editId }) : { data: [], error: null };
     const editing = { data: editingResult.data?.[0] || null, error: editingResult.error };
     if (editing.error) throw editing.error;
@@ -519,10 +534,14 @@
 
   function toggleWallChoice() {
     const form = $("#profile-form"); if (!form) return;
-    const isPublic = $("[name=is_public]", form).checked;
-    const wall = $("[name=show_on_wall]", form);
+    const isPublic = !form.elements.make_private.checked;
+    form.elements.is_public.checked = isPublic;
+    const wall = form.elements.show_on_wall;
+    wall.checked = isPublic && form.elements.wall_preference.value === "true";
     wall.disabled = !isPublic;
-    if (!isPublic) wall.checked = false;
+    $("#profile-visibility-status", form).textContent = language === "zh"
+      ? (isPublic ? `保存后，名片资料和照片对所有访客公开${wall.checked ? "，并展示在首页名片墙" : "，不展示在首页名片墙"}。` : "保存后，名片资料和照片仅本人及网站管理员可查看。")
+      : (isPublic ? `After saving, all visitors can view your profile details and photo${wall.checked ? ", including on the homepage wall" : "; your card stays off the homepage wall"}.` : "After saving, only you and the site administrator can view your profile details and photo.");
   }
 
   function syncContributorWall() {
@@ -587,6 +606,12 @@
   async function handleProfileSubmit(form, values = new FormData(form)) {
     const userId = session?.user.id;
     if (!userId) throw Object.assign(new Error(t("loginRequired")), { code: "loginRequired" });
+    const requiredProfile = Object.fromEntries(values);
+    requiredProfile.avatar_path = photoDraft?.removed ? "" : (selectedPhoto ? "selected" : profile?.avatar_path);
+    if (!profilePolicy.complete(requiredProfile)) {
+      const labels = { display_name: t("displayName"), bio: t("bio"), programme: t("programme"), study_year: t("profileStudyStage"), avatar_path: t("avatar") };
+      throw new Error((language === "zh" ? "请补齐：" : "Please complete: ") + profilePolicy.missing(requiredProfile).map(key => labels[key]).join(language === "zh" ? "、" : ", "));
+    }
     if (values.has("show_on_wall") && values.has("is_public") && !String(values.get("display_name") || "").trim()) throw Object.assign(new Error(t("wallNameRequired")), { code: "wallNameRequired" });
     if (photoDraft?.loading) throw new Error(language === "zh" ? "照片仍在读取，请稍候再保存。" : "Your photo is still loading. Please wait before saving.");
     const draft = photoDraft;
@@ -627,13 +652,16 @@
     wallLoadedAt = 0;
     clearFormDraft();
     toast(t("profileSaved"));
-    await render();
+    if (route().params.has("onboarding")) {
+      window.location.assign(profilePolicy.destination(route().params.get("return"), window.location.href));
+    } else await render();
   }
 
   async function handleReviewSubmit(form, values = new FormData(form)) {
     const userId = session?.user.id;
     await getProfile();
     if (!userId || session?.user.id !== userId) throw new Error(t("loginRequired"));
+    if (!profilePolicy.complete(profile)) throw new Error(language === "zh" ? "请先补齐个人资料，再提交评价。" : "Complete your profile before submitting a review.");
     const payload = model.reviewPayload(Object.fromEntries(values), profile, session?.user.id, language);
     const editId = form.dataset.editId;
     const result = editId
@@ -667,8 +695,13 @@
     }
   });
 
+  // Update derived visibility before the photo editor draws its input preview.
+  document.addEventListener("input", (event) => {
+    if (event.target.matches("#profile-form [name=show_on_wall]")) $("#profile-form").elements.wall_preference.value = String(event.target.checked);
+    if (event.target.matches("#profile-form [name=make_private], #profile-form [name=show_on_wall]")) toggleWallChoice();
+  }, true);
+
   document.addEventListener("change", (event) => {
-    if (event.target.matches("#profile-form [name=is_public]")) toggleWallChoice();
     if (event.target.matches("input[name=course_mode]")) toggleNewCourseFields();
     if (event.target.matches("#term")) toggleTermField();
     if (event.target.matches("#browse-filters select")) { const focusId = event.target.id; readBrowseFilters(); renderBrowse(); document.getElementById(focusId)?.focus({ preventScroll: true }); }
