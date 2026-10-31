@@ -1,59 +1,14 @@
 <!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="RateMyCourse：找到适合你的早稻田课程。浏览课程、比较修课体验，查看免费选课指南。" />
-    <title>RateMyCourse · Find the courses that fit you</title>
-    <link rel="stylesheet" href="community.css?v=20261027-moderation-1" />
-    <link rel="stylesheet" href="namecard-wall.css?v=20261021-photo-2" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-config.js" defer></script>
-    <script src="analytics-client.js?v=20261020-test-session" defer></script>
-    <script src="profile-policy.js?v=20261028-profile-3" defer></script>
-    <script src="auth-client.js?v=20261028-profile-3" defer></script>
-    <script src="community-model.js?v=20261024-schools-1" defer></script>
-    <script src="review-translations.js?v=20261020-attribution" defer></script>
-    <script src="./profile-photo.js?v=20261028-profile-3" defer></script>
-    <script src="namecard-wall.js?v=20261021-photo-2" defer></script>
-    <script src="site-nav.js?v=20261020-upgrade-1" defer></script>
-    <script src="review-feedback.js?v=20261027-moderation-1" defer></script>
-    <script src="community.js?v=20261028-profile-3" defer></script>
-  </head>
-  <body>
-    <a class="skip" href="#main">跳到主要内容</a>
-    <header class="site-header">
-      <a class="brand" href="./#/browse" aria-label="RateMyCourse 首页">
-        <span>RateMyCourse<small>Course experiences</small></span>
-      </a>
-      <nav aria-label="RateMyCourse 导航">
-        <a href="./#/browse" data-nav="browse">课程浏览</a>
-        <a href="guide.html" data-nav="guide">选课指南</a>
-        <a href="./#/browse?section=contributors" data-nav="contributors">分享者</a>
-        <a href="./#/mine" data-nav="mine">我的投稿</a>
-        <a href="./#/profile" data-nav="profile">个人名片</a>
-      </nav>
-      <div class="community-actions">
-        <button class="quiet" type="button" id="language-toggle">English</button>
-        <span id="account-nav"></span>
-      </div>
-    </header>
-    <main id="main" class="page shell" tabindex="-1" aria-live="polite"></main>
-    <noscript><p class="shell">请启用 JavaScript 以浏览课程。Enable JavaScript to browse courses. <a href="guide.html">选课指南 / Registration guide</a></p></noscript>
-    <section id="contributors-wall" hidden></section>
-    <footer>
-      <span>RateMyCourse · Course Experiences</span>
-      <span id="auth-notice">Google 登录仅用于账户与投稿归属，不代表学籍或修课经历已验证。</span>
-    </footer>
-    <div class="toast" role="status" id="toast" hidden></div>
-    <dialog id="login" aria-labelledby="login-title">
-      <button class="close" type="button" data-close-login aria-label="关闭">×</button>
-      <b class="brand-mark login-mark">r.</b>
-      <p class="eyebrow">GOOGLE SIGN-IN</p>
-      <h2 id="login-title">分享你的课程体验</h2>
-      <p id="login-description">浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。</p>
-      <button class="button google" type="button" data-community-signin>使用 Google 继续</button>
-      <p class="small" id="login-privacy">登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。</p>
-    </dialog>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Find the courses that fit you through real student experiences. A university journey. A community along the way.">
+  <title>RateMyCourse · Chart your own course.</title>
+  <script src="site-entry.js?v=20261031-landing-1" defer></script>
+</head>
+<body>
+  <p id="site-boot" role="status">Opening RateMyCourse…</p>
+  <noscript><p>Enable JavaScript to explore RateMyCourse. <a href="guide.html">Course-registration guide / 选课指南</a></p></noscript>
+</body>
 </html>
