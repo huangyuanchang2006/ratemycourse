@@ -12,6 +12,14 @@ Chambers is the website author and occupies the middle card on desktop.
 Preserve real course data, bilingual copy, native scrolling, social links and inline WeChat ID copy.
 No staged registration copy from the prototypes: use the existing date-driven source.
 
+## Course detail reading rules · 2026-10-31
+
+- User confirmed: compact course name and reported instructor/term/credits, followed by four simultaneously visible information blocks: Workload, Group work, Attendance and Would take again. They are not interactive tabs.
+- User confirmed: original experience, fit/avoid, assessment/notes, then contributor identity and voluntarily shared background; shared official course information comes last.
+- User confirmed: preserve the five stored author text fields. Do not summarize, rewrite, infer missing answers, or insert generated grades. Existing translations are explicitly labeled and closed by default, separate from the unchanged main text.
+- Implementation: author URLs remain character-for-character intact and become keyboard-accessible links. Unknown indicators say Not provided; the historical source-sheet link is removed from the reading UI.
+- Implementation: preserve the existing palette and native scrolling. Fit/avoid stack on phones; labels wrap without hiding values. Reuse existing feedback and reduced-motion behavior.
+
 
 ## RateMyCourse refinement · 2026-10-18
 

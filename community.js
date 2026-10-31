@@ -350,8 +350,18 @@
     return `<div class="review-identity"><span class="review-avatar">${avatarMarkup}</span><div><strong>${language === "zh" ? "体验作者：" : "Review by: "}${escapeHtml(name)}</strong><small>${escapeHtml(reviewTerm(review))}</small></div>${profileLink}</div>`;
   }
 
+  function reviewText(value) {
+    return String(value ?? "").split(/(https?:\/\/[^\s<>"']+)/g).map((part, index) => {
+      if (index % 2 === 0) return escapeHtml(part);
+      const url = safeUrl(part);
+      return url ? `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(part)}</a>` : escapeHtml(part);
+    }).join("");
+  }
+
   async function reviewCard(review) {
-    review = displayReview(review);
+    const readingCopy = displayReview(review);
+    const sourceLanguage = String(review.content_language || "").toLowerCase().split(/[-_]/)[0];
+    const translatedFields = sourceLanguage && sourceLanguage !== language ? readingCopy.translationStatus?.translatedFields || [] : [];
     const avatar = review.public_avatar_path ? await signedAvatar(review.public_avatar_path) : "";
     const contextFields = [
       [language === "zh" ? "修读项目／学部" : "Programme", review.reviewer_programme],
@@ -359,16 +369,25 @@
       [language === "zh" ? "相关知识基础" : "Prior knowledge", review.reviewer_prior_knowledge],
       [language === "zh" ? "选课目标" : "Course goal", review.reviewer_selection_goal]
     ].filter(([, value]) => value);
+    const workload = Number(review.workload);
+    const validWorkload = Number.isInteger(workload) && workload >= 1 && workload <= 5;
+    const groupIndexes = { none: 0, some: 1, heavy: 2, mixed: 3 };
+    const groupIndex = Object.prototype.hasOwnProperty.call(groupIndexes, review.group_work) ? groupIndexes[review.group_work] : undefined;
+    const notProvided = language === "zh" ? "未提供" : "Not provided";
+    const reviewSection = (key, value, kind = "review") => value ? `<section class="review-body" data-${kind}-field="${key}"><h3>${escapeHtml(t(key))}</h3><p>${reviewText(value)}</p></section>` : "";
     return `<article class="experience">
-      <div class="review-top"><div>${identity(review, avatar)}${review.legacy_source_id ? "" : `<small>${escapeHtml(shortDate(review.created_at))}</small>`}</div><span class="pill green">${review.legacy_source_id ? (language === "zh" ? "历史导入" : "Archive") : escapeHtml(t("approved"))}</span></div>
-      ${review.teacher ? `<p class="small review-instructor">${language === "zh" ? "授课教师（作者记录）：" : "Instructor (reported by this author): "}${escapeHtml(review.teacher)}</p>` : ""}
-
-      ${review.share_background && contextFields.length ? `<section class="context"><div class="context-label">${language === "zh" ? "作者自述背景" : "AUTHOR-REPORTED BACKGROUND"}<span>${escapeHtml(t("contextAuthor"))}</span></div><dl class="context-grid">${contextFields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></section>` : ""}
-      <div class="review-measures"><p><span class="measure-label">${escapeHtml(t("workload"))}</span><span class="workload-score"><strong>${Number(review.workload) || "—"}</strong><span>/ 5</span><small>${escapeHtml(t("workloadNames")[(Number(review.workload) || 1) - 1])}</small></span></p><p><span class="measure-label">${escapeHtml(t("group"))}</span><strong>${escapeHtml(t("groupChoices")[({ none: 0, some: 1, heavy: 2, mixed: 3 })[review.group_work] ?? 3])}</strong></p></div>
-      ${translationNotice(review)}
-      ${[["fit", review.fit], ["avoid", review.avoid], ["experience", review.experience], ["assessment", review.assessment], ["notes", review.notes]].filter(([, value]) => value).map(([label, value]) => `<section class="review-body"><h3>${escapeHtml(t(label))}</h3><p>${escapeHtml(value)}</p></section>`).join("")}
-      ${review.legacy_source_url ? `<details class="source-note"><summary>${language === "zh" ? "来源与修读时间说明" : "Source and term information"}</summary><p class="small">${language === "zh" ? "从原始课程表恢复；原表的 Spring／Fall 为开课信息，不作为作者修读时间。" : "Restored from the original course sheet. Spring / Fall describes when the course is offered, not when the author took it."} <a class="text-link" href="${escapeHtml(safeUrl(review.legacy_source_url))}" target="_blank" rel="noreferrer">${language === "zh" ? "查看原始来源" : "View source"}</a></p></details>` : ""}
-      ${review.translationStatus?.translatedFields?.length && review.rawFields ? `<details class="original-review"><summary>${language === "zh" ? "查看作者原文" : "Read the contributor’s original"}</summary>${["experience", "fit", "avoid", "assessment", "notes"].filter(key => review.rawFields[key]).map(key => `<section class="review-body"><h3>${escapeHtml(t(key))}</h3><p>${escapeHtml(review.rawFields[key])}</p></section>`).join("")}</details>` : ""}
+      <dl class="review-measures" aria-label="${language === "zh" ? "这位作者的课程判断" : "This contributor’s course indicators"}"><div${validWorkload ? "" : ' class="is-unavailable"'}><dt>${escapeHtml(t("workload"))}</dt><dd><strong>${validWorkload ? workload : notProvided}</strong>${validWorkload ? `<span>/ 5 · ${escapeHtml(t("workloadNames")[workload - 1])}</span>` : ""}</dd></div><div${groupIndex === undefined ? ' class="is-unavailable"' : ""}><dt>${escapeHtml(t("group"))}</dt><dd><strong>${groupIndex === undefined ? notProvided : escapeHtml(t("groupChoices")[groupIndex])}</strong></dd></div><div class="is-unavailable"><dt>${language === "zh" ? "出席要求" : "Attendance"}</dt><dd><strong>${notProvided}</strong></dd></div><div class="is-unavailable"><dt>${language === "zh" ? "是否愿意再选" : "Would take again"}</dt><dd><strong>${notProvided}</strong></dd></div></dl>
+      ${reviewSection("experience", review.experience)}
+      ${review.fit || review.avoid ? `<div class="fit-pair">${reviewSection("fit", review.fit)}${reviewSection("avoid", review.avoid)}</div>` : ""}
+      ${reviewSection("assessment", review.assessment)}
+      ${reviewSection("notes", review.notes)}
+      ${translatedFields.length ? `<details class="original-review review-translation"><summary>${language === "zh" ? "查看已有中文译文" : "Read existing English translation"}</summary>${["experience", "fit", "avoid", "assessment", "notes"].filter(key => translatedFields.includes(key)).map(key => reviewSection(key, readingCopy[key], "translation")).join("")}</details>` : ""}
+      <div class="review-author">
+        <div class="review-top"><div>${identity(review, avatar)}${review.legacy_source_id ? "" : `<small>${escapeHtml(shortDate(review.created_at))}</small>`}</div><span class="pill green">${review.legacy_source_id ? (language === "zh" ? "历史导入" : "Archive") : escapeHtml(t("approved"))}</span></div>
+        ${review.teacher ? `<p class="small review-instructor">${language === "zh" ? "授课教师（作者记录）：" : "Instructor (reported by this author): "}${escapeHtml(review.teacher)}</p>` : ""}
+        ${review.share_background && contextFields.length ? `<section class="context"><div class="context-label">${language === "zh" ? "作者自述背景" : "AUTHOR-REPORTED BACKGROUND"}<span>${escapeHtml(t("contextAuthor"))}</span></div><dl class="context-grid">${contextFields.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl></section>` : ""}
+        ${review.legacy_source_url ? `<details class="source-note"><summary>${language === "zh" ? "来源与修读时间说明" : "Source and term information"}</summary><p class="small">${language === "zh" ? "从原始课程表恢复；原表的 Spring／Fall 为开课信息，不作为作者修读时间。" : "Restored from the original course sheet. Spring / Fall describes when the course is offered, not when the author took it."}</p></details>` : ""}
+      </div>
     </article>`;
   }
 
@@ -381,15 +400,20 @@
     if (error) throw error;
     const syllabi = [...new Set([...(course.syllabus_urls || []), course.syllabus_url].filter(Boolean))].map(safeUrl).filter(Boolean);
     const reviews = data || [];
+    const teachers = [...new Set(reviews.map(review => review.teacher?.trim()).filter(Boolean))];
+    const terms = [...new Set(reviews.map(review => review.term === "修读学期未记录 / Term taken not recorded" ? (language === "zh" ? "未记录" : "Not recorded") : model.termLabel(review.term, language)).filter(Boolean))];
     const cards = await Promise.all(reviews.map(reviewCard));
     if (version !== renderVersion) return;
     const proposalButton = `<a class="button" href="./#/share?course=${encodeURIComponent(id)}">${language === "zh" ? "分享这门课的体验" : "Share your experience"}</a>`;
     main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(model.providerLabel(course.provider, language))}</span></div>
-      <p class="eyebrow">${escapeHtml(model.providerLabel(course.provider, language) || "RateMyCourse")}</p><h1 class="detail-title">${escapeHtml(course.title)}</h1>
+      <header class="course-heading"><h1 class="detail-title">${escapeHtml(course.title)}</h1>
+      <dl class="course-summary"><div><dt>${language === "zh" ? "教师（作者记录）" : "Instructor (author-reported)"}</dt><dd>${escapeHtml(teachers.join(" / ") || "—")}</dd></div><div><dt>${escapeHtml(t("term"))}</dt><dd>${escapeHtml(terms.join(" / ") || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div></dl></header>
+      <h2 class="visually-hidden" id="course-experiences-title">${language === "zh" ? "修课体验" : "Student experiences"} (${reviews.length})</h2>
+      <div class="detail-layout"><div class="detail-reading"><section class="review-stack" aria-labelledby="course-experiences-title">${reviews.length ? cards.join("") : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`}</section>
+      <section class="official-course-info" aria-labelledby="official-course-title"><h2 id="official-course-title">${language === "zh" ? "官方课程信息" : "Official course information"}</h2>
       <dl class="course-facts"><div><dt>${escapeHtml(t("courseCode"))}</dt><dd>${escapeHtml(course.course_code || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div><div><dt>${escapeHtml(t("language"))}</dt><dd>${escapeHtml(teachingLanguage(course.language) || "—")}</dd></div></dl>
-      <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${language === "zh" ? "暂无官方链接" : "No official syllabus link listed"}</span>`}</div>
-      <div class="section-heading"><h2>${language === "zh" ? "修课体验" : "Student experiences"} <span class="pill">${reviews.length}</span></h2></div>
-      <div class="detail-layout"><section class="review-stack">${reviews.length ? cards.join("") : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`}</section><aside><div class="side-card green"><h3>${language === "zh" ? "分享你的视角" : "Add your perspective"}</h3><p>${language === "zh" ? "每条评价保留作者自己的课程负担和适合度，不做平均分排名。" : "Each contribution keeps the author’s own workload and fit notes; experiences are not averaged into a rating."}</p>${proposalButton}</div></aside></div>`;
+      <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${language === "zh" ? "暂无官方链接" : "No official syllabus link listed"}</span>`}</div></section></div>
+      <aside><div class="side-card green"><h3>${language === "zh" ? "分享你的视角" : "Add your perspective"}</h3><p>${language === "zh" ? "每条评价保留作者自己的课程负担和适合度，不做平均分排名。" : "Each contribution keeps the author’s own workload and fit notes; experiences are not averaged into a rating."}</p>${proposalButton}</div></aside></div>`;
   }
 
   function gated(title, description) {
