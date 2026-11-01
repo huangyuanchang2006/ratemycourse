@@ -20,6 +20,17 @@ No staged registration copy from the prototypes: use the existing date-driven so
 - Implementation: author URLs remain character-for-character intact and become keyboard-accessible links. Unknown indicators say Not provided; the historical source-sheet link is removed from the reading UI.
 - Implementation: preserve the existing palette and native scrolling. Fit/avoid stack on phones; labels wrap without hiding values. Reuse existing feedback and reduced-motion behavior.
 
+## Contribution flow · 2026-11-01
+
+- User reviewed the local contribution design, specified the term selector and removed the repeated programme/year inputs, then explicitly requested main/Pages publication.
+- One click-triggered term field: year, then Spring/Fall; no preselection. Chinese and English follow the website display language. Back, Escape, outside click and keyboard access retain committed input.
+- New-contribution window rolls from the Japan current year minus six; future semesters remain unavailable. Use verified official semester starts, not the first class date. Unverified calendar years stay unavailable until updated. Published historical reviews are retained.
+- Allow an explicit unknown term without forcing an invented date. Preserve historical raw term values on owner edits.
+- Keep all five authored text fields verbatim, including whitespace. Fill in reading order, preview with the shared review renderer, then submit through the existing ownership/version/approval paths.
+- Four indicators are optional; absence and explicit uncertainty remain distinct. No inference from narrative or personal grades. Review preview must not claim publication.
+- Do not collect programme or year again on every review. Keep those in Profile; do not infer year from semester. Historical opted-in review background survives edits; missing fields do not copy profile data into new public reviews.
+- Explicit account/form-scoped drafts survive reload in the same tab. Errors retain text and publication choices. Figma synchronization remains pending; no substitute file or Page created.
+
 
 ## RateMyCourse refinement · 2026-10-18
 

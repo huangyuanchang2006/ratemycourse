@@ -1,6 +1,7 @@
 (() => {
   'use strict';
   const version = '20261031-landing-1';
+  const courseVersion = '20261101-submission';
   const root = new URL('.', location.href);
   const mode = () => location.hash.startsWith('#/') ? 'courses' : 'landing';
   const initialMode = mode();
@@ -24,7 +25,7 @@
     });
   }
   async function courses() {
-    const response = await fetch(new URL(`courses-shell.html?v=${version}`, root));
+    const response = await fetch(new URL(`courses-shell.html?v=${courseVersion}`, root));
     if (!response.ok) throw new Error('The course library could not load.');
     const shell = new DOMParser().parseFromString(await response.text(), 'text/html');
     const styles = [...shell.querySelectorAll('link[rel="stylesheet"]')].map(node => node.getAttribute('href'));

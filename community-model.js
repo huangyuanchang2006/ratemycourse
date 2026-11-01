@@ -155,8 +155,19 @@
   const optional = (value) => text(value) || null;
   const enabled = (value) => value === true || value === "on";
   const reject = (code) => { throw Object.assign(new Error(code), { code }); };
-  const normalizeTerm = (value) => terms.find((term) => [term.value, term.zh, term.en].includes(value))?.value || value || "";
-  const termLabel = (value, language) => terms.find((term) => term.value === normalizeTerm(value))?.[language] || value || "";
+  const normalizeTerm = (value) => {
+    if (["unknown", "Unknown"].includes(value)) return "Unknown";
+    const match = /^(\d{4})-(spring|fall)$/i.exec(value || "");
+    return match ? `${match[2].toLowerCase() === "spring" ? "Spring" : "Fall"} ${match[1]}` : terms.find((term) => [term.value, term.zh, term.en].includes(value))?.value || value || "";
+  };
+  const termLabel = (value, language) => {
+    const normalized = normalizeTerm(value);
+    if (normalized === "Unknown") return language === "zh" ? "修读学期不详" : "Term taken not known";
+    const match = /^(Spring|Fall) (\d{4})$/.exec(normalized);
+    return match ? (language === "zh" ? `${match[2]} 年${match[1] === "Spring" ? "春季" : "秋季"}` : normalized) : value || "";
+  };
+  const authored = (value) => String(value ?? "");
+  const authoredOptional = (value) => authored(value).trim() ? authored(value) : null;
 
   function syllabusUrls(value) {
     const lines = text(value).split(/\r?\n/).map(text).filter(Boolean);
@@ -169,7 +180,7 @@
     }))];
   }
 
-  function reviewPayload(values, profile, userId, language) {
+  function reviewPayload(values, profile, userId, language, previous = null) {
     const isNew = values.course_mode === "new";
     const showName = enabled(values.show_name);
     const showAvatar = enabled(values.show_avatar);
@@ -192,20 +203,23 @@
       suggested_course_language: isNew ? optional(values.suggested_course_language) : null,
       suggested_course_syllabus_url: urls[0] || null,
       suggested_course_syllabus_urls: urls,
-      term: values.term === "other" ? text(values.term_other) : normalizeTerm(text(values.term)),
+      term: previous && values.term === previous.term ? previous.term : values.term === "other" ? text(values.term_other) : normalizeTerm(text(values.term)),
       teacher: optional(values.teacher),
-      workload: Number(values.workload),
-      group_work: text(values.group_work),
-      assessment: optional(values.assessment),
-      fit: optional(values.fit),
-      avoid: optional(values.avoid),
-      experience: text(values.experience),
-      notes: optional(values.notes),
+      workload: values.workload && values.workload !== "unknown" ? Number(values.workload) : null,
+      workload_unknown: values.workload === "unknown",
+      group_work: optional(values.group_work),
+      attendance: optional(values.attendance),
+      take_again: optional(values.take_again),
+      assessment: authoredOptional(values.assessment),
+      fit: authoredOptional(values.fit),
+      avoid: authoredOptional(values.avoid),
+      experience: authored(values.experience),
+      notes: authoredOptional(values.notes),
       content_language: values.content_language,
-      reviewer_programme: shareBackground ? optional(values.reviewer_programme) : null,
-      reviewer_year: shareBackground ? optional(values.reviewer_year) : null,
-      reviewer_prior_knowledge: shareBackground ? optional(values.reviewer_prior_knowledge) : null,
-      reviewer_selection_goal: shareBackground ? optional(values.reviewer_selection_goal) : null,
+      reviewer_programme: shareBackground ? previous?.reviewer_programme ?? null : null,
+      reviewer_year: shareBackground ? previous?.reviewer_year ?? null : null,
+      reviewer_prior_knowledge: shareBackground ? authoredOptional(values.reviewer_prior_knowledge) : null,
+      reviewer_selection_goal: shareBackground ? authoredOptional(values.reviewer_selection_goal) : null,
       share_background: shareBackground,
       show_name: showName,
       show_avatar: showAvatar,
@@ -214,7 +228,7 @@
       public_avatar_crop: showAvatar ? profile.photo_crops?.avatar || null : null,
       public_profile_id: showProfile ? userId : null
     };
-    if ((!isNew && !payload.course_id) || (isNew && (!payload.suggested_course_title || !providers.includes(payload.suggested_course_provider))) || !payload.term || !payload.experience || !Number.isInteger(payload.workload) || payload.workload < 1 || payload.workload > 5 || !groups.includes(payload.group_work)) reject("required");
+    if ((!isNew && !payload.course_id) || (isNew && (!payload.suggested_course_title || !providers.includes(payload.suggested_course_provider))) || !payload.term || !payload.experience.trim() || (payload.workload !== null && (!Number.isInteger(payload.workload) || payload.workload < 1 || payload.workload > 5)) || (payload.group_work !== null && ![...groups, "unknown"].includes(payload.group_work)) || (payload.attendance !== null && !["required", "not_required", "conditional", "unknown"].includes(payload.attendance)) || (payload.take_again !== null && !["yes", "no", "unsure"].includes(payload.take_again))) reject("required");
     return payload;
   }
 
