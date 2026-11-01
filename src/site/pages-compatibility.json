@@ -1,0 +1,13 @@
+{
+  "classicBaseline": "77a2aea999b5c6be98601368097d7658d4bc3f9f",
+  "previousModuleReleases": [],
+  "classicFiles": [
+    "analytics-client.js", "analytics.css", "analytics.js", "auth-client.js",
+    "community-model.js", "community-redirect.js", "community.css", "community.js",
+    "guide.js", "namecard-wall.css", "namecard-wall.js", "profile-photo.js",
+    "profile-policy.js", "review-feedback.js", "review-translations.js",
+    "site-entry.js", "site-nav.js", "supabase-config.js", "term-picker.js"
+  ],
+  "classicTrees": ["landing"],
+  "classicHtml": ["index.html", "community.html", "courses-shell.html", "guide.html", "analytics.html"]
+}

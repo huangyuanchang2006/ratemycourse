@@ -1,0 +1,44 @@
+name: Publish Pages
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      rollback:
+        description: Serve the pinned previous site while retaining current cached module URLs
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - name: Assemble immutable modules and classic cache compatibility
+        env:
+          RMC_ROLLBACK: ${{ inputs.rollback }}
+        run: |
+          if [ "$RMC_ROLLBACK" = "true" ]; then
+            node src/site/build-pages.mjs --out "$RUNNER_TEMP/ratemycourse-pages" --rollback
+          else
+            node src/site/build-pages.mjs --out "$RUNNER_TEMP/ratemycourse-pages"
+          fi
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: ${{ runner.temp }}/ratemycourse-pages
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
