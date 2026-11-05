@@ -1,7 +1,7 @@
 import "./navigation.js";
 import { getPlatform } from "../platform/index.js";
 import { getAuth, createIdentity } from "../identity/index.js";
-import { createCatalog } from "../catalog/index.js";
+import { createCatalog, createSemester } from "../catalog/index.js";
 import { createContributions } from "../contributions/index.js";
 import { createAdminAccess } from "../admin/index.js";
 import { copy, sourceLanguages } from "./copy.js";
@@ -15,6 +15,7 @@ import {
   gated,
 } from "../platform/index.js";
 async function mountWorkspace() {
+  document.body.classList.add("rmc-workspace");
   const { client, metrics } = await getPlatform(),
     auth = await getAuth(),
     main = $("#main");
@@ -68,12 +69,13 @@ async function mountWorkspace() {
       catalog.selectAuthor(key);
       renderHeader();
     },
-    onAccountChange: () => contributions.reset(),
+    onAccountChange: () => { contributions.reset(); semester.reset(); },
     fail: (error) =>
       toast(t("serverError") + (error?.message || t("notReady"))),
   };
   const identity = createIdentity({ client, auth, view }),
-    catalog = createCatalog({ client, view, identity }),
+    semester = createSemester({ client, identity, view }),
+    catalog = createCatalog({ client, view, identity, semester }),
     contributions = createContributions({
       client,
       view,
@@ -121,13 +123,14 @@ async function mountWorkspace() {
       view.language === "zh" ? "English" : "中文";
     const labels = {
       browse: t("browse"),
+      semester: view.language === "zh" ? "我的学期" : "My Semester",
       mine: t("mine"),
       profile: t("profile"),
       guide: view.language === "zh" ? "选课指南" : "Registration guide",
       contributors: view.language === "zh" ? "分享者" : "Contributors",
     };
     document.querySelectorAll("[data-nav]").forEach((anchor) => {
-      anchor.textContent = labels[anchor.dataset.nav];
+      (anchor.querySelector("[data-nav-label]") || anchor).textContent = labels[anchor.dataset.nav];
       const currentNav =
         route().path === "browse" &&
         route().params.get("section") === "contributors"
@@ -138,6 +141,17 @@ async function mountWorkspace() {
         currentNav === anchor.dataset.nav ? "page" : "false",
       );
     });
+    const zh = view.language === "zh";
+    const pageLabel = $("#workspace-page-label");
+    if (pageLabel) pageLabel.textContent = labels[route().path] || (zh ? "课程体验" : "Course experiences");
+    const context = $("#workspace-context");
+    if (context) context.textContent = zh ? "学生工作区" : "Student workspace";
+    const noteTitle = $("#sidebar-note-title");
+    if (noteTitle) noteTitle.textContent = zh ? "你的经历，值得分享。" : "Your experience matters.";
+    const noteCopy = $("#sidebar-note-copy");
+    if (noteCopy) noteCopy.textContent = zh ? "帮助下一位同学找到适合自己的课。" : "Help the next student find a course that fits.";
+    const contribute = $("#sidebar-contribute");
+    if (contribute) contribute.textContent = zh ? "分享课程体验" : "Write a review";
     const footerBrand = $("footer>span:first-child");
     if (footerBrand)
       footerBrand.textContent =
@@ -174,6 +188,7 @@ async function mountWorkspace() {
     try {
       if (["browse", "course", "share", "mine"].includes(current.path))
         await catalog.load();
+      if (["browse", "course"].includes(current.path)) await semester.load();
       if (["browse", "people"].includes(current.path))
         await identity.loadContributors();
       if (version !== renderVersion) return;
@@ -184,6 +199,7 @@ async function mountWorkspace() {
           current.params.get("edit") || "",
           version,
         );
+      else if (current.path === "semester") await semester.render(version);
       else if (current.path === "mine") await contributions.renderMine(version);
       else if (current.path === "profile")
         await identity.renderProfile(version);
@@ -206,7 +222,7 @@ async function mountWorkspace() {
           profile: "profile",
           people: "person",
         }[current.path] || "browse";
-      metrics.page({
+      if (current.path !== "semester") metrics.page({
         page: metricPage,
         courseId:
           metricPage === "course" ? catalog.canonical(current.id) : null,
@@ -218,6 +234,7 @@ async function mountWorkspace() {
           behavior: "instant",
         });
       main.removeAttribute("aria-busy");
+      focusReview();
     } catch (error) {
       if (version !== renderVersion) return;
       main.removeAttribute("aria-busy");
@@ -225,10 +242,20 @@ async function mountWorkspace() {
       main.innerHTML = `<div class="empty-state"><h2>${escapeHtml(t("notReady"))}</h2><p>${escapeHtml(error?.message || "")}</p><button class="button" type="button" data-action="retry">${language === "zh" ? "重试" : "Try again"}</button></div>`;
     }
   }
+  function focusReview() {
+    const current = route();
+    if (current.path !== "course" || !current.params.has("review")) return false;
+    const review = document.getElementById("review-" + current.params.get("review"));
+    if (!review) return false;
+    review.scrollIntoView({ block: "start", behavior: "instant" });
+    review.focus({ preventScroll: true });
+    return true;
+  }
   listen(document, "click", async (event) => {
     if (activePath === "browse" && event.target.closest('a[href*="#/course/"]'))
       browseScrollY = scrollY;
     if (await identity.handleClick(event)) return;
+    if (semester.handleClick(event)) return;
     if (contributions.handleClick(event) || catalog.handleClick(event)) return;
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (action === "share") {
@@ -262,7 +289,7 @@ async function mountWorkspace() {
     }
   });
   listen(document, "submit", async (event) => {
-    if (catalog.handleSubmit(event)) return;
+    if (semester.handleSubmit(event) || catalog.handleSubmit(event)) return;
     const form = event.target;
     if (form.id === "profile-form") {
       event.preventDefault();
@@ -293,7 +320,7 @@ async function mountWorkspace() {
         block: "start",
         behavior: "instant",
       });
-    else scrollTo({ top: returning ? browseScrollY : 0, behavior: "instant" });
+    else if (!focusReview()) scrollTo({ top: returning ? browseScrollY : 0, behavior: "instant" });
   });
   listen(window, "beforeunload", (event) => {
     if (!identity.dirty && !contributions.dirty) return;

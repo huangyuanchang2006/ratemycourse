@@ -47,12 +47,16 @@
     });
     label();
   }
-  const updateHeight = () =>
+  const updateHeight = () => {
+    // A desktop sidebar occupies width, not the top scroll offset.
+    const sidebar = header.classList.contains("workspace-sidebar") &&
+      window.matchMedia("(min-width: 1101px)").matches;
     document.documentElement.style.setProperty(
       "--site-header-height",
-      `${Math.ceil(header.getBoundingClientRect().height)}px`,
+      `${sidebar ? 0 : Math.ceil(header.getBoundingClientRect().height)}px`,
     );
+  };
   updateHeight();
   if (window.ResizeObserver) new ResizeObserver(updateHeight).observe(header);
-  else window.addEventListener("resize", updateHeight, { passive: true });
+  window.addEventListener("resize", updateHeight, { passive: true });
 })();
