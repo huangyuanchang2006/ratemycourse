@@ -632,7 +632,7 @@ footer,#auth-notice{font-size:13px;line-height:1.6}
   .rmc-workspace .search button { min-width: 68px; padding-inline: 12px; }
   .rmc-workspace .page-heading { gap: 16px; }
   .rmc-workspace .page-heading h2 { font-size: 23px; }
-  .rmc-workspace .page-heading > .button { max-width: 52%; background: var(--wine); color: #fff; border-color: var(--wine); font-size: 12px; padding-inline: 12px; }
+  .rmc-workspace .page-heading > .button { max-width: 52%; background: var(--wine); color: #fff; border-color: var(--wine); font-size: 12px; padding-inline: 12px; white-space: normal; text-align: center; }
   .rmc-workspace .browse { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .rmc-workspace .filter-panel > summary { min-height: 52px; padding: 12px 16px; color: var(--ink); font-size: 14px; }
   .rmc-workspace .filter-panel[open] > summary { border-bottom: 1px solid var(--line); }
