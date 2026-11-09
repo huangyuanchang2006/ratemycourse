@@ -1,4 +1,3 @@
-export { createSemester } from "./semester.js";
 import * as rules from "./rules.js";
 import { translations } from "./translations.js";
 import { createCatalogStore } from "./store.js";
@@ -15,7 +14,7 @@ export {
   filterCatalog,
 } from "./rules.js";
 export { createCatalogStore } from "./store.js";
-export function createCatalog({ client, view, identity, semester }) {
+export function createCatalog({ client, view, identity }) {
   const { $, main, t, escapeHtml, safeUrl, link, button, toast, route } = view;
   const gated = (title, description) => view.gated(title, description);
   const shortDate = (value) =>
@@ -169,8 +168,8 @@ export function createCatalog({ client, view, identity, semester }) {
     ]
       .map(safeUrl)
       .filter(Boolean);
-    return `<article class="course-card card">
-      <div class="course-card-top"><span class="course-monogram" aria-hidden="true">${escapeHtml((course.course_code || course.title || "C").slice(0, 2).toUpperCase())}</span><div class="chips"><span class="pill badge">${escapeHtml(rules.providerLabel(course.provider, view.language) || "RateMyCourse")}</span>${course.language ? `<span class="pill">${escapeHtml(teachingLanguage(course.language))}</span>` : ""}</div></div>
+    return `<article class="course-card">
+      <div class="chips"><span class="pill">${escapeHtml(rules.providerLabel(course.provider, view.language) || "RateMyCourse")}</span>${course.language ? `<span class="pill">${escapeHtml(teachingLanguage(course.language))}</span>` : ""}</div>
       <h3><a href="./#/course/${encodeURIComponent(course.id)}">${escapeHtml(course.title)}</a></h3>
       <p class="meta">${course.course_code ? `${escapeHtml(course.course_code)} · ` : ""}${course.credits ?? "—"} ${view.language === "zh" ? "学分" : course.credits === 1 ? "credit" : "credits"} · ${totalReviews}${view.language === "zh" ? " 条公开体验" : totalReviews === 1 ? " experience" : " experiences"}</p>
       ${
@@ -194,7 +193,6 @@ export function createCatalog({ client, view, identity, semester }) {
       }
       ${hasReviewFilters ? `<p class="small">${reviews.length} ${view.language === "zh" ? "条体验同时符合全部体验筛选条件" : reviews.length === 1 ? "experience matches all filters" : "experiences match all filters"}</p>` : ""}
       <div class="card-bottom"><a class="text-link" href="./#/course/${encodeURIComponent(course.id)}">${totalReviews > 1 ? (view.language === "zh" ? `查看全部 ${totalReviews} 条独立体验` : `Read all ${totalReviews} independent experiences`) : view.language === "zh" ? "查看课程与评价" : "View course and reviews"}</a>${syllabi[0] ? `<a class="text-link" href="${escapeHtml(syllabi[0])}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))} ↗</a>` : ""}</div>
-      ${semester?.button(course.id) || ""}
     </article>`;
   }
 
@@ -220,17 +218,16 @@ export function createCatalog({ client, view, identity, semester }) {
     );
     const option = (value, label, selected) =>
       `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
-    main.innerHTML = `<section class="hero browse-hero">
-      <div><p class="eyebrow">${view.language === "zh" ? "为你的下一学期" : "FOR YOUR NEXT SEMESTER"}</p><h1>${view.language === "zh" ? "好课程，从真实体验开始。" : "Good courses. Real perspectives."}</h1>
-      <p class="subtext">${view.language === "zh" ? "发现早稻田的课程，阅读独立的修课经历，找到适合自己的选择。" : "Explore Waseda courses through independent student experiences. Find what fits you."}</p>
-      <div class="search input-group"><span class="search-symbol" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></span><input class="form-control" id="course-search" type="search" value="${escapeHtml(query)}" placeholder="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}"><button class="button btn btn-primary" type="button" data-action="search">${view.language === "zh" ? "搜索" : "Search"}</button></div>
-      <div class="browse-proof"><span>${store.courses.length} ${view.language === "zh" ? "条课程记录" : "catalog records"}</span><span>${view.language === "zh" ? "免费浏览 · 无需登录" : "Free to explore · No sign-in needed"}</span></div>
-      </div><aside class="hero-example card"><span class="guide-mark" aria-hidden="true">↗</span><p class="eyebrow">${view.language === "zh" ? "选课，从这里开始" : "A LITTLE DIRECTION"}</p><h2>${view.language === "zh" ? "第一次选课？" : "New to registration?"}</h2><p>${view.language === "zh" ? "找到你的学部说明、官方链接与选课前检查项。" : "Start with official guidance for your school and a simple registration checklist."}</p><a class="btn btn-outline-primary" href="guide.html">${view.language === "zh" ? "打开选课指南" : "Explore the guide"} ↗</a></aside>
+    main.innerHTML = `<section class="hero">
+      <div><p class="eyebrow">${view.language === "zh" ? "早稻田大学" : "WASEDA UNIVERSITY"}</p><h1>${view.language === "zh" ? "找到适合你的课程。" : "Find the courses that fit you."}</h1>
+      <p class="subtext"><span class="intro-full">${view.language === "zh" ? "已开放早稻田全部 13 个本科学部及 JCulP、CJL 的投稿入口。比较已收录的修课体验，也欢迎分享尚未收录的课程。浏览免费，无需登录。" : "Contributions are open to all 13 Waseda undergraduate schools, plus JCulP and CJL. Compare listed experiences or contribute a course that is missing. Free to browse, no sign-in needed."}</span><span class="intro-compact">${view.language === "zh" ? "浏览早稻田全部 13 个学部与 CJL，分享你的修课体验。" : "Explore all 13 Waseda schools and CJL. Share your course experience."}</span></p>
+      <div class="search"><input id="course-search" type="search" value="${escapeHtml(query)}" placeholder="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}"><button class="button" type="button" data-action="search">${view.language === "zh" ? "搜索" : "Search"}</button></div>
+      </div><aside class="hero-example"><span class="pill green">${view.language === "zh" ? "免费选课指南" : "FREE REGISTRATION GUIDE"}</span><h2>${view.language === "zh" ? "第一次选课？" : "New to course registration?"}</h2><p>${view.language === "zh" ? "从你的学部／项目出发，找到官方注册说明、课程要求和选课前检查项。" : "Find the official registration instructions, curriculum links, and a short checklist for your programme."}</p><a class="button secondary" href="guide.html"><span class="guide-full">${view.language === "zh" ? "打开选课指南" : "Open the guide"}</span><span class="guide-compact">${view.language === "zh" ? "第一次选课？查看指南" : "New to registration? Open the guide"}</span> ↗</a></aside>
     </section>
-    <div class="page-heading browse-heading"><div><p class="eyebrow">${view.language === "zh" ? "课程目录" : "THE COURSE LIBRARY"}</p><h2>${escapeHtml(t("browse"))}</h2></div><a class="button btn btn-primary" href="${escapeHtml(shareUrl())}"><span aria-hidden="true">＋</span>${escapeHtml(t("add"))}</a></div>
-    <div class="browse"><details class="filter-panel card"><summary>${view.language === "zh" ? "筛选课程" : "Filter courses"}<span>${[providerFilter, languageFilter, workloadFilter, groupFilter, authorFilter, fitFilter, avoidFilter].filter(Boolean).length || (view.language === "zh" ? "全部课程" : "All courses")}</span></summary><form class="filters" id="browse-filters"><h2>${view.language === "zh" ? "筛选课程" : "Filter courses"}</h2>
-      <div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select class="form-select" id="provider-filter" name="provider"><option value="">${escapeHtml(t("all"))}</option>${rules.providers.map((item) => option(item, rules.providerLabel(item, view.language), providerFilter)).join("")}</select></div>
-      <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select class="form-select" id="language-filter" name="language">${option("", view.language === "zh" ? "全部语言" : "All languages", languageFilter)}${[
+    <div class="page-heading browse-heading"><div><h2>${escapeHtml(t("browse"))}</h2></div><a class="button" href="${escapeHtml(shareUrl())}"><span class="contribute-full">${escapeHtml(t("add"))}</span><span class="contribute-compact">${view.language === "zh" ? "分享体验" : "Contribute"}</span></a></div>
+    <div class="browse"><details class="filter-panel"><summary>${view.language === "zh" ? "筛选课程" : "Filter courses"}<span>${[providerFilter, languageFilter, workloadFilter, groupFilter, authorFilter, fitFilter, avoidFilter].filter(Boolean).length || (view.language === "zh" ? "全部课程" : "All courses")}</span></summary><form class="filters" id="browse-filters"><h2>${view.language === "zh" ? "筛选课程" : "Filter courses"}</h2>
+      <div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select id="provider-filter" name="provider"><option value="">${escapeHtml(t("all"))}</option>${rules.providers.map((item) => option(item, rules.providerLabel(item, view.language), providerFilter)).join("")}</select></div>
+      <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select id="language-filter" name="language">${option("", view.language === "zh" ? "全部语言" : "All languages", languageFilter)}${[
         ...new Set(
           store.courses.map((course) => course.language).filter(Boolean),
         ),
@@ -238,12 +235,12 @@ export function createCatalog({ client, view, identity, semester }) {
         .sort()
         .map((item) => option(item, teachingLanguage(item), languageFilter))
         .join("")}</select></div>
-      <div class="filter"><label for="workload-filter">${escapeHtml(t("workload"))} · 1–5</label><select class="form-select" id="workload-filter" name="workload">${option("", view.language === "zh" ? "全部负担" : "Any workload", workloadFilter)}${option("light", `1–2 · ${view.language === "zh" ? "较轻" : "Lighter"}`, workloadFilter)}${option("3", `3 · ${t("workloadNames")[2]}`, workloadFilter)}${option("heavy", `4–5 · ${view.language === "zh" ? "较重" : "Heavier"}`, workloadFilter)}</select><p class="hint">1 = ${t("workloadNames")[0]} · 5 = ${t("workloadNames")[4]}</p></div>
-      <div class="filter"><label for="group-filter">${escapeHtml(t("group"))}</label><select class="form-select" id="group-filter" name="group">${option("", view.language === "zh" ? "全部合作方式" : "Any group work", groupFilter)}${rules.groups.map((key, index) => option(key, t("groupChoices")[index], groupFilter)).join("")}</select></div>
-      <div class="filter"><label for="author-filter">${view.language === "zh" ? "体验作者" : "Contributor"}</label><select class="form-select" id="author-filter" name="author">${option("", view.language === "zh" ? "全部作者" : "All contributors", authorFilter)}${authorChoices()
+      <div class="filter"><label for="workload-filter">${escapeHtml(t("workload"))} · 1–5</label><select id="workload-filter" name="workload">${option("", view.language === "zh" ? "全部负担" : "Any workload", workloadFilter)}${option("light", `1–2 · ${view.language === "zh" ? "较轻" : "Lighter"}`, workloadFilter)}${option("3", `3 · ${t("workloadNames")[2]}`, workloadFilter)}${option("heavy", `4–5 · ${view.language === "zh" ? "较重" : "Heavier"}`, workloadFilter)}</select><p class="hint">1 = ${t("workloadNames")[0]} · 5 = ${t("workloadNames")[4]}</p></div>
+      <div class="filter"><label for="group-filter">${escapeHtml(t("group"))}</label><select id="group-filter" name="group">${option("", view.language === "zh" ? "全部合作方式" : "Any group work", groupFilter)}${rules.groups.map((key, index) => option(key, t("groupChoices")[index], groupFilter)).join("")}</select></div>
+      <div class="filter"><label for="author-filter">${view.language === "zh" ? "体验作者" : "Contributor"}</label><select id="author-filter" name="author">${option("", view.language === "zh" ? "全部作者" : "All contributors", authorFilter)}${authorChoices()
         .map((person) => option(person.value, person.label, authorFilter))
         .join("")}</select></div>
-      <details class="audience-filter" ${fitFilter || avoidFilter ? "open" : ""}><summary>${view.language === "zh" ? "更多筛选：适合／不适合" : "More filters: fit and avoid"}</summary><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input class="form-control" id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input class="form-control" id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${view.language === "zh" ? "按当前显示语言匹配。同一条体验须同时满足各项条件。" : "Matches the displayed language. All conditions must match the same experience."}</p><button class="button secondary" type="submit">${view.language === "zh" ? "应用筛选" : "Apply filters"}</button></details>${button("clear-filters", view.language === "zh" ? "清除筛选" : "Clear filters", "quiet filter-reset")}
+      <details class="audience-filter" ${fitFilter || avoidFilter ? "open" : ""}><summary>${view.language === "zh" ? "更多筛选：适合／不适合" : "More filters: fit and avoid"}</summary><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${view.language === "zh" ? "按当前显示语言匹配。同一条体验须同时满足各项条件。" : "Matches the displayed language. All conditions must match the same experience."}</p><button class="button secondary" type="submit">${view.language === "zh" ? "应用筛选" : "Apply filters"}</button></details>${button("clear-filters", view.language === "zh" ? "清除筛选" : "Clear filters", "quiet filter-reset")}
     </form></details><section><p class="results-meta" role="status" aria-live="polite"><span>${filtered.length} / ${store.courses.length}${authorFilter ? ` · ${escapeHtml(author.label)}` : ""}</span><span>${view.language === "zh" ? "条课程记录 · 每位作者的体验分别呈现。" : "catalog records · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2><p>${view.language === "zh" ? "没有找到这门课？添加课程资料并分享第一条体验。" : "Course missing? Add its details and share the first experience."}</p>${link(shareUrl(), t("add"), "button")}${button("clear-filters", view.language === "zh" ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
     syncFilterPanel();
     if (!hasEnteredBrowse) {
@@ -371,7 +368,7 @@ export function createCatalog({ client, view, identity, semester }) {
       value
         ? `<section class="review-body" data-${kind}-field="${key}"><h3>${escapeHtml(t(key))}</h3><p>${reviewText(value)}</p></section>`
         : "";
-    return `<article class="experience" ${review.id ? `id="review-${escapeHtml(review.id)}" tabindex="-1"` : ""}>
+    return `<article class="experience">
       <dl class="review-measures" aria-label="${view.language === "zh" ? "这位作者的课程判断" : "This contributor’s course indicators"}"><div${validWorkload ? "" : ' class="is-unavailable"'}><dt>${escapeHtml(t("workload"))}</dt><dd><strong>${validWorkload ? workload : review.workload_unknown ? notSure : notProvided}</strong>${validWorkload ? `<span>/ 5 · ${escapeHtml(t("workloadNames")[workload - 1])}</span>` : ""}</dd></div><div${groupIndex === undefined ? ' class="is-unavailable"' : ""}><dt>${escapeHtml(t("group"))}</dt><dd><strong>${groupIndex === undefined ? (review.group_work === "unknown" ? notSure : notProvided) : escapeHtml(t("groupChoices")[groupIndex])}</strong></dd></div><div${review.attendance ? "" : ' class="is-unavailable"'}><dt>${view.language === "zh" ? "出席要求" : "Attendance"}</dt><dd><strong>${escapeHtml(attendanceLabels[review.attendance] || notProvided)}</strong></dd></div><div${review.take_again ? "" : ' class="is-unavailable"'}><dt>${view.language === "zh" ? "是否愿意再选" : "Would take again"}</dt><dd><strong>${escapeHtml(againLabels[review.take_again] || notProvided)}</strong></dd></div></dl>
       ${reviewSection("experience", review.experience)}
       ${review.fit || review.avoid ? `<div class="fit-pair">${reviewSection("fit", review.fit)}${reviewSection("avoid", review.avoid)}</div>` : ""}
@@ -440,7 +437,7 @@ export function createCatalog({ client, view, identity, semester }) {
     if (version !== view.version) return;
     const proposalButton = `<a class="button" href="./#/share?course=${encodeURIComponent(id)}">${view.language === "zh" ? "分享这门课的体验" : "Share your experience"}</a>`;
     main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(rules.providerLabel(course.provider, view.language))}</span></div>
-      <header class="course-heading"><div class="course-heading-actions"><h1 class="detail-title">${escapeHtml(course.title)}</h1>${semester?.button(course.id) || ""}</div>
+      <header class="course-heading"><h1 class="detail-title">${escapeHtml(course.title)}</h1>
       <dl class="course-summary"><div><dt>${view.language === "zh" ? "教师（作者记录）" : "Instructor (author-reported)"}</dt><dd>${escapeHtml(teachers.join(" / ") || "—")}</dd></div><div><dt>${escapeHtml(t("term"))}</dt><dd>${escapeHtml(terms.join(" / ") || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div></dl></header>
       <h2 class="visually-hidden" id="course-experiences-title">${view.language === "zh" ? "修课体验" : "Student experiences"} (${reviews.length})</h2>
       <div class="detail-layout"><div class="detail-reading"><section class="review-stack" aria-labelledby="course-experiences-title">${reviews.length ? cards.join("") : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`}</section>

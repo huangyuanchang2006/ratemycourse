@@ -5,40 +5,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="RateMyCourse：找到适合你的早稻田课程。浏览课程、比较修课体验，查看免费选课指南。" />
     <title>RateMyCourse · Find the courses that fit you</title>
-    <link rel="stylesheet" href="src/site/vendor/tabler/tabler.min.css?v=1.7.3" />
-    <link rel="stylesheet" href="src/site/workspace.css?v=20261106-semester-1" />
+    <link rel="stylesheet" href="src/site/workspace.css?v=20261101-architecture-1" />
     <link rel="stylesheet" href="src/identity/wall.css?v=20261101-architecture-1" />
     <script defer src="src/site/workspace-entry.js?v=20261101-architecture-2"></script>
 </head>
-  <body class="rmc-workspace">
+  <body>
     <a class="skip" href="#main">跳到主要内容</a>
-    <header class="site-header workspace-sidebar">
+    <header class="site-header">
       <a class="brand" href="./" aria-label="RateMyCourse 首页">
-        <span class="brand-symbol" aria-hidden="true">r<span>.</span></span><span>RateMyCourse<small>Course experiences</small></span>
+        <span>RateMyCourse<small>Course experiences</small></span>
       </a>
-      <nav class="nav nav-pills" aria-label="RateMyCourse 导航">
-        <a href="./#/browse" data-nav="browse" class="nav-link"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span data-nav-label>课程浏览</span></a>
-        <a href="./#/semester" data-nav="semester" class="nav-link"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-13 5h3m3 0h3"/></svg><span data-nav-label>我的学期</span></a>
-        <a href="guide.html" data-nav="guide" class="nav-link"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 6c-3-3-7-3-9-2v15c3-1 6-1 9 2 3-3 6-3 9-2V4c-2-1-6-1-9 2Z"/><path d="M12 6v15"/></svg><span data-nav-label>选课指南</span></a>
-        <a href="./#/browse?section=contributors" data-nav="contributors" class="nav-link"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6m2 4a5 5 0 0 1 3 5v1"/></svg><span data-nav-label>分享者</span></a>
-        <a href="./#/mine" data-nav="mine" class="nav-link"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 3h9l4 4v14H6Z"/><path d="M14 3v5h5M9 12h7m-7 4h5"/></svg><span data-nav-label>我的投稿</span></a>
-        <a href="./#/profile" data-nav="profile" class="nav-link"><svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span data-nav-label>个人名片</span></a>
+      <nav aria-label="RateMyCourse 导航">
+        <a href="./#/browse" data-nav="browse">课程浏览</a>
+        <a href="guide.html" data-nav="guide">选课指南</a>
+        <a href="./#/browse?section=contributors" data-nav="contributors">分享者</a>
+        <a href="./#/mine" data-nav="mine">我的投稿</a>
+        <a href="./#/profile" data-nav="profile">个人名片</a>
       </nav>
-      <div class="sidebar-note">
-        <span class="sidebar-note-mark" aria-hidden="true">✦</span>
-        <strong id="sidebar-note-title">你的经历，值得分享。</strong>
-        <p id="sidebar-note-copy">帮助下一位同学找到适合自己的课。</p>
-        <a class="btn btn-primary" href="./#/share" id="sidebar-contribute">分享课程体验</a>
-      </div>
       <div class="community-actions">
         <button class="quiet" type="button" id="language-toggle">English</button>
         <span id="account-nav"></span>
       </div>
     </header>
-    <div class="workspace-topbar">
-      <div><span class="workspace-context" id="workspace-context">学生工作区</span><span class="topbar-divider" aria-hidden="true">/</span><span id="workspace-page-label">课程浏览</span></div>
-      <span class="workspace-university">WASEDA UNIVERSITY</span>
-    </div>
     <main id="main" class="page shell" tabindex="-1" aria-live="polite"></main>
     <noscript><p class="shell">请启用 JavaScript 以浏览课程。Enable JavaScript to browse courses. <a href="guide.html">选课指南 / Registration guide</a></p></noscript>
     <section id="contributors-wall" hidden></section>

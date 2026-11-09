@@ -1,6 +1,6 @@
 # RateMyCourse · Architecture
 
-更新：2026-11-06（日本时间）。**先通过本页定位 module，再按任务深入 implementation。** 产品行为见 [PRD.md](PRD.md)，视觉与交互见 [DESIGN.md](DESIGN.md)。
+更新：2026-11-01（日本时间）。**先通过本页定位 module，再按任务深入 implementation。** 产品行为见 [PRD.md](PRD.md)，视觉与交互见 [DESIGN.md](DESIGN.md)。
 
 六个 module 已完成重组，起点为 `77a2aea`。实际发布版本以正式站 `release-manifest.json` 中的 revision / mode 为准；本页描述源码及其发布方式。
 
@@ -153,21 +153,3 @@ analytics.html → site/admin-entry.js → identity + admin
 | DESIGN | 视觉、交互、可访问性、资产及内容呈现约定变化 | 作者正文副本、权限规则的重复定义 |
 
 事实只维护一处，其余链接引用。无需三份每次一起改，不为每个 helper 追加说明文档。当前实现、已确认未实现和实验必须明确区分。
-
-## 8. 课程工作区 UI 依赖（2026-11-06）
-
-- courses-shell.html 按顺序加载本地 Tabler 1.7.3 CSS、workspace.css 与名片墙 CSS。Tabler 来自官方 npm @tabler/core 1.7.3，目录为 src/site/vendor/tabler/；原始发行 CSS 未修改，LICENSE 来自官方 tabler/tabler 仓库 dev/LICENSE。
-- 仅使用 CSS 组件类（nav / card / btn / form-control / form-select / input-group）；不引入框架、构建依赖、Tabler JS、远程 CDN 或可选插件。原生对话框、照片裁切、学期选择器与现有表单事件继续由所属 module 管理。
-- workspace 启动时添加 rmc-workspace body 类，以兼容入口 loader 只复制 body 子节点的行为。站点主题局限于此类；导航标签更新保留图标节点，侧栏的高度不会影响桌面锚点滚动偏移。
-- identity 只更改资料表单分组和桌面预览展开状态；catalog 只更改呈现，不改字段投影、筛选语义、作者原文或权限。
-- 当前 Pages 打包白名单递归复制 src，因此 vendor CSS 和许可证会随不可变 release 图发布；仍需按原有规则保留线上版本，不能把本地 UI 验证视作发布。
-- Vendored tabler.min.css SHA-256: `00601301716c0bd97acbec6c2b6cb98f257d148063ef168aa06f902b1e7d9ea5`.
-
-## 9. My Semester
-
-- semester.js 位于 catalog 内，持有保存清单、请求版本和 AI 结果状态；仅通过 catalog/index.js 导出 createSemester。site/workspace.js 装配路由、生命周期和事件，catalog 通过注入的 semester.button 生成加入控件。跨账户、异步导航及多次点击均按请求代次处理。
-- 浏览和详情可匿名读取；保存清单和评分要求已登录。新页面不冒充既有 browse 统计事件。引用通过 #/course/<id>?review=<review-id> 定位真实评价。
-- 私有后端位于 /Users/mintee/coding/ratemycourse-private/，不进入 Pages。一个迁移新增 semester_courses、semester_assessments、semester_ai_usage，RLS 分离用户清单和服务端写入。触发器串行检查每账户 20 门课上限；唯一键防重复。
-- assess-semester 在 Supabase 验证 bearer token，以用户权限读取资料和 published reviews；服务密钥只用于评分写入与原子限流。仅 OpenAI 原生 HTTPS 请求，无 SDK、队列、向量库或新增前端依赖。服务端验证结构化响应中的分数范围、覆盖课程与评价引用。
-- 评分指纹包含使用到的全部资料、课程事实、评价内容、语言、模型和提示规则版本；生成后重新读取，避免保存期间发生的修改被误认为当前评估。GET 检查缓存不调用模型。
-- 后端未配置时独立提示，不伪装为浏览器本地保存。启动步骤和线上验收在私有 README；GitHub Pages 发布规则保持不变。

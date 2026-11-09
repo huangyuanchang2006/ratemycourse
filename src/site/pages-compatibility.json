@@ -1,6 +1,6 @@
 {
   "classicBaseline": "77a2aea999b5c6be98601368097d7658d4bc3f9f",
-  "previousModuleReleases": ["fbdc3f1c52964847531f6a603f226f6c745dfc9e"],
+  "previousModuleReleases": [],
   "classicFiles": [
     "analytics-client.js", "analytics.css", "analytics.js", "auth-client.js",
     "community-model.js", "community-redirect.js", "community.css", "community.js",
