@@ -1,5 +1,7 @@
 # RateMyCourse · Architecture
 
+2026-11-09：以新的提交恢复 fbdc3f1 的活跃源码；保留 fbdc3f1 与 db8d9ac 的不可变 release 图以兼容已缓存入口。feature/my-semester-ui 分支及既有提交历史保持。后续接入需在集成分支恢复被撤回的变更并重新验收，不能假设单纯 merge 已在 main 历史中的旧提交会重新应用功能。
+
 更新：2026-11-01（日本时间）。**先通过本页定位 module，再按任务深入 implementation。** 产品行为见 [PRD.md](PRD.md)，视觉与交互见 [DESIGN.md](DESIGN.md)。
 
 六个 module 已完成重组，起点为 `77a2aea`。实际发布版本以正式站 `release-manifest.json` 中的 revision / mode 为准；本页描述源码及其发布方式。
