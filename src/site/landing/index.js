@@ -1,691 +1,350 @@
 import { getAuth, getContributorWall } from "../../identity/index.js";
-export function mountLanding() {
-  let authClient;
-  const authPromise = getAuth()
-    .then((auth) => {
-      authClient = auth;
-      window.dispatchEvent(
-        new CustomEvent("sils:auth", { detail: { session: auth.session } }),
-      );
-      return auth;
-    })
-    .catch(() => null);
-  ("use strict");
+import {
+  renderBayHero,
+  updateBayHeroCopy,
+  renderBayCredits,
+  mountBayScroll,
+} from "./bay-hero.js";
+import { COURSE_PREVIEWS } from "./previews.js";
 
-  const app = document.querySelector("#app"),
-    modal = document.querySelector("#modal");
+const FEATURED_WALL_IDS = Object.freeze([
+  "f6669b7c-2104-4dcb-ba10-decd41fc130f", // Chambers
+  "d56cca0a-787e-413d-8b96-9a513beaf322", // Cindy
+  "dcd6262c-bbd0-442d-b639-9b39ad564cf7", // Richard
+  "6b81c480-22c4-431f-abef-4e3d43b8fcc9", // Star
+]);
+
+const esc = (v) =>
+  String(v ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[c],
+  );
+
+function deepActiveElement() {
+  let el = document.activeElement;
+  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+  return el;
+}
+
+export function mountLanding() {
+  const app = document.querySelector("#app");
+  const modal = document.querySelector("#modal");
   if (!app || !modal) return;
-  const $ = (s, r = document) => r.querySelector(s),
-    esc = (v) =>
-      String(v ?? "").replace(
-        /[&<>"']/g,
-        (c) =>
-          ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#39;",
-          })[c],
-      );
-  const controller = new AbortController(),
-    listen = (el, type, fn) =>
-      el.addEventListener(type, fn, { signal: controller.signal });
+
+  const $ = (selector, root = document) => root.querySelector(selector);
+  const controller = new AbortController();
+  const listen = (el, type, fn, options = {}) =>
+    el.addEventListener(type, fn, { ...options, signal: controller.signal });
+
   let lang = "en";
   try {
     lang =
       localStorage.getItem("odyssey-community-language") === "zh" ? "zh" : "en";
-  } catch {}
-  const zh = () => lang === "zh",
-    t = (en, cn) => (zh() ? cn : en);
-  let returnFocus = null,
-    wallCleanup = () => {},
-    animCleanup = () => {},
-    wallAction = null,
-    target = "./#/browse",
-    signingIn = false,
-    destroyed = false;
-  const wallProfileIds = {
-    Chambers: "f6669b7c-2104-4dcb-ba10-decd41fc130f",
-    Cindy: "d56cca0a-787e-413d-8b96-9a513beaf322",
-    Richard: "dcd6262c-bbd0-442d-b639-9b39ad564cf7",
-  };
-  let allowedWallIds = new Set(),
-    wallPending = false;
-  const allowedPeople = () =>
-    people.filter((person) => allowedWallIds.has(wallProfileIds[person.name]));
-  const previews = {
-    en: [
-      {
-        id: "comprehensive-japanese-4d",
-        title: "Comprehensive Japanese 4",
-        provider: "CJL",
-        language: "Japanese",
-        takenBy: "Chambers",
-        excerpt:
-          "Top-tier, but the workload is genuinely heavy and some assignments may feel pointless.",
-      },
-      {
-        id: "comprehensive-japanese-4-cindy",
-        title: "Comprehensive Japanese 4",
-        provider: "CJL",
-        language: "Japanese",
-        takenBy: "Cindy",
-        excerpt:
-          "Top-tier. Three in-person classes plus two days of online worksheets each week.",
-      },
-      {
-        id: "manga-anime-japanese-5",
-        title: "Learning Japanese through Manga and Anime 5",
-        provider: "CJL",
-        language: "Japanese",
-        takenBy: "Chambers",
-        excerpt:
-          "…students form interest-based groups and can visit real-life anime locations, draw manga, make a doujin magazine…",
-      },
-      {
-        id: "introductory-data-science-02",
-        title: "Introductory Data Science 02",
-        provider: "SILS",
-        language: "English",
-        takenBy: "Richard",
-        excerpt: "Average; the difficulty and workload are both low.",
-      },
-    ],
-    zh: [
-      {
-        id: "comprehensive-japanese-4d",
-        title: "Comprehensive Japanese 4",
-        provider: "CJL",
-        language: "Japanese",
-        takenBy: "Chambers",
-        excerpt:
-          "人上人；课业量真的很大而且有些作业个人（包括身边大部分同学）感觉意义是不大的。",
-      },
-      {
-        id: "comprehensive-japanese-4-cindy",
-        title: "Comprehensive Japanese 4",
-        provider: "CJL",
-        language: "Japanese",
-        takenBy: "Cindy",
-        excerpt:
-          "人上人。每周3次线下课+2天的线上work sheet, 作业量偏多，每周一次语法+词汇quiz算入总成绩，一学期两次发表+期中期末考试。",
-      },
-      {
-        id: "manga-anime-japanese-5",
-        title: "漫画・アニメから学ぶ日本語学習法5",
-        provider: "CJL",
-        language: "Japanese",
-        takenBy: "Chambers",
-        excerpt:
-          "人上人；很神奇的课但是一点都不轻松，老师完全不讲课而是让你们根据兴趣分组，去圣地巡礼，去画漫画，做同人杂志，做（同人）虚拟角色音乐MV都可以。",
-      },
-      {
-        id: "introductory-data-science-02",
-        title: "Introductory Data Science 02",
-        provider: "SILS",
-        language: "English",
-        takenBy: "Richard",
-        excerpt:
-          "NPC，低难度低任务量，划水一学期临时抱佛脚也能接近满分，但务必避雷SHINO, Junnosuke 篠　潤之介，日本口音集大成者…",
-      },
-    ],
-  };
+  } catch {
+    // Storage can be restricted in private browsing contexts.
+  }
 
-  const people = [
-    {
-      name: "Chambers",
-      term: "SILS 26Spring",
-      image: "chambers-portrait-web.jpg",
-      focus: "Business, Economics, group work, and course-planning tools",
-      focusZh: "商业、经济课程，小组合作与选课工具",
-    },
-    {
-      name: "Richard",
-      term: "SILS 25Fall",
-      image: "richard-portrait-web.jpg",
-      focus: "Humanities, history, and interdisciplinary courses",
-      focusZh: "人文历史方向，跨学科课程体验",
-    },
-    {
-      name: "Cindy",
-      term: "SILS 26Spring",
-      image: "cindy-portrait-web.png",
-      focus:
-        "Business, International Relations, people skills, and adapting to new environments",
-      focusZh: "商科、国际关系课程；人际交往、环境适应能力",
-    },
-  ];
-  const courseTargets = {
-    "comprehensive-japanese-4d": "ee944749-66f8-46b2-9602-2ef33c2ca42a",
-    "comprehensive-japanese-4-cindy": "12cf7746-042e-46a1-995b-a3e8346e62fa",
-    "manga-anime-japanese-5": "125a09c8-27a5-4fd0-95eb-14e656b3ca4b",
-    "introductory-data-science-02": "dda6db05-5c0f-4fa1-8013-6c3bf80294a5",
-  };
-  function course(id) {
-    return previews[lang].find((c) => c.id === id);
+  let authClient = null;
+  let currentSession = null;
+  let activeCourseIndex = 0;
+  let allowedWallIds = new Set();
+  let wallPending = false;
+  let signingIn = false;
+  let destroyed = false;
+  let returnFocus = null;
+  let target = "./#/browse";
+  let stopHero = () => {};
+  let studentCarousel = { setLang() {}, unmount() {} };
+  let studentMountToken = 0;
+  let swipeStart = null;
+
+  const zh = () => lang === "zh";
+  const t = (en, cn) => (zh() ? cn : en);
+
+  function syncAuthButton(nextSession) {
+    currentSession = nextSession || null;
+    const button = $(".site-nav .signin", app);
+    if (button) {
+      button.textContent = currentSession
+        ? t("My profile", "个人名片")
+        : t("Sign in", "登录");
+    }
   }
-  function previewExcerpt(c) {
-    return c.excerpt;
-  }
+
+  const authPromise = getAuth()
+    .then(async (auth) => {
+      authClient = auth;
+      syncAuthButton(auth.session);
+      await auth.ready;
+      if (!destroyed) syncAuthButton(auth.session);
+      return auth;
+    })
+    .catch(() => null);
+
   function header() {
-    return `<header class="site-header"><a class="brand" href="./">RateMyCourse<small>${t("A student community, through courses.", "从课程出发的学生社区。")}</small></a><nav class="site-nav" aria-label="${t("Main navigation", "主导航")}"><button class="desktop-nav" data-gate="workspace">${t("Course library", "课程库")}</button><a class="desktop-nav optional" href="#community">${t("Our community", "我们的社区")}</a><a class="desktop-nav optional" href="guide.html">${t("Course guide", "选课指南")}</a><button class="lang" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${t("中文", "EN")}</button><button class="signin" data-action="signin">${authClient?.session ? t("My profile ↗", "个人名片 ↗") : t("Sign in ↗", "登录 ↗")}</button></nav></header>`;
-  }
-  function wall() {
-    const displayPeople = allowedPeople();
-    if (!displayPeople.length)
-      return `<section class="community" id="community" hidden style="display:none"></section>`;
-    return `<section class="community" id="community"><div class="section-head"><div><h2>${t("Meet the people behind the perspectives.", "看见体验背后的人。")}</h2><p>${t("Different backgrounds. Different paths through university.", "不同的背景，不同的大学旅程。")}</p></div><div class="wall-controls" ${displayPeople.length < 2 ? 'hidden style="display:none"' : ""}><button class="wall-toggle" data-action="wall-pause" aria-pressed="false">${t("Pause motion", "暂停滚动")}</button><button class="icon-button" data-action="wall-prev" aria-label="${t("Previous contributors", "上一组名片")}">←</button><button class="icon-button" data-action="wall-next" aria-label="${t("Next contributors", "下一组名片")}">→</button></div></div><div class="people-viewport" tabindex="0" role="region" aria-label="${t("Contributors; scroll horizontally", "贡献者名片，可横向滚动")}"><div class="people-track">${displayPeople.map((p) => `<article class="person-card"><img class="person-photo" src="src/site/landing/assets/${p.image}" width="132" height="215" alt="${esc(p.name)}" loading="lazy"><div class="person-copy"><h3>${p.name}</h3><p class="term">${p.term}</p><p class="focus-copy">${zh() ? p.focusZh : p.focus}</p><button data-person="${p.name}">${t("Read their experiences", "阅读修课经历")} ↗</button></div></article>`).join("")}</div></div></section>`;
-  }
-  function footer() {
-    return `<footer class="site-footer"><div class="footer-top"><p>${t("A university journey.<br>A community along the way.", "一段大学旅程。<br>一路同行的社区。")}</p><nav class="footer-links" aria-label="${t("Footer navigation", "页脚导航")}"><a href="./">${t("Home", "首页")}</a><button data-gate="workspace">${t("Courses", "课程库")}</button><a href="#community">${t("Community", "社区")}</a><a href="guide.html">${t("Course guide", "选课指南")}</a></nav></div><div class="footer-wordmark">RateMyCourse</div><div class="footer-bottom"><span>© 2026 RateMyCourse · WaseCrew</span><span>${t("Built around student perspectives.", "从学生的真实视角出发。")}</span></div></footer>`;
-  }
-  function landing() {
-    const chosen = [
-      "comprehensive-japanese-4d",
-      "comprehensive-japanese-4-cindy",
-      "manga-anime-japanese-5",
-      "introductory-data-science-02",
-    ].map(course);
-    return `${header()}<main id="main"><section class="hero"><div class="ship-background" aria-hidden="true"></div><div class="hero-content"><p class="journey">A university journey. A community along the way.</p><h1><span class="setup">Chart your</span><span class="focus">own <span class="course-word">course</span>.</span></h1><p class="copy">${t("Find the courses that fit you through real student experiences. Learn from those who have been there, and find your own way forward.", "从真实的修课经历里，找到适合自己的课程。听听走过这段路的人怎么说，再决定自己的方向。")}</p><div class="actions"><a class="button" href="#preview">${t("Explore courses", "探索课程")} <span class="arrow">↘</span></a><a class="text-link" href="#community">${t("Meet the community", "认识社区里的同学")} ↗</a></div></div><img class="waves" src="src/site/landing/assets/sea-blue.svg" alt=""></section>${wall()}<section class="feature copy-first" id="features"><div class="feature-copy"><h2>${t("A syllabus tells you what.<br>Students tell you how it feels.", "大纲告诉你学什么。<br>同学告诉你亲身感受。")}</h2><p>${t("Search by course, interest, or lecturer. Read about the projects, workload, and classroom moments that matter to your decision.", "按课程、兴趣或老师检索。从作业、小组项目和课堂经历中，找到影响你选课的具体细节。")}</p><button class="text-link" data-gate="workspace">${t("Find a course", "寻找课程")} ↗</button></div><div class="feature-sample search-sample"><div class="sample-search"><span>${t("Japanese · Creative projects", "日语 · 创意项目")}</span><span>↵</span></div><div class="sample-result"><h3>${esc(course("manga-anime-japanese-5").title)}</h3><p>CJL · ${t("Japanese · Group project", "日语 · 小组项目")}</p></div><div class="sample-result"><h3>${esc(course("comprehensive-japanese-4d").title)}</h3><p>CJL · ${t("Japanese · Presentations", "日语 · 发表")}</p></div></div></section><section class="feature reverse"><div class="feature-copy"><h2>${t("There is a person<br>behind every perspective.", "每一种看法背后，<br>都有一个具体的人。")}</h2><p>${t("A course can mean different things to different people. Get to know the students sharing their experiences, then decide what resonates with you.", "同一门课，对不同的人有不同意义。认识分享经历的同学，理解他们的背景，再判断哪些经验适合自己。")}</p><a class="text-link" href="#community">${t("Meet the contributors", "认识贡献者")} ↗</a></div><div class="feature-sample voice-layout"><img src="src/site/landing/assets/cindy-portrait-web.png" width="135" height="175" alt="Cindy" loading="lazy"><blockquote>${t("“Three in-person classes plus two days of online worksheets each week.”", "“每周3次线下课+2天的线上work sheet, 作业量偏多”")}<cite>Cindy · Comprehensive Japanese 4</cite></blockquote></div></section><section class="future-feature"><div class="feature-copy"><span class="planned">${t("In development", "规划中")}</span><h2>${t("Your goals.<br>A more personal starting point.", "从你的目标出发，<br>找到更合适的起点。")}</h2><p>${t("We are planning an AI course assistant that uses your background and preferences to suggest courses, with reasons and sources you can check.", "我们计划让 AI 助手结合你的背景与偏好推荐课程，并给出可核对的理由与来源。")}</p></div><div class="future-paper"><div class="prompt">${t("“I enjoy group projects.<br>What could fit my semester?”", "“我喜欢小组项目，<br>这学期可以选哪些课？”")}</div><div class="rule"></div><p>${t("Course candidates, student perspectives, and the details still worth checking.", "课程候选、真实修课视角，以及仍需核对的信息。")}</p></div></section><section class="preview" id="preview"><div class="section-head"><h2>${t("One course.<br>More than one point of view.", "一门课，<br>不止一种感受。")}</h2><p>${t("Start with four excerpts from the community. Read the full experiences when you sign in.", "先读四段真实的修课经历。登录后，继续了解完整体验。")}</p></div><div class="preview-grid">${chosen.map((c) => `<article class="preview-card"><div class="preview-meta"><span>${esc(c.provider)}</span><span>${esc(c.language)}</span></div><h3>${esc(c.title)}</h3><blockquote>“${esc(previewExcerpt(c))}”</blockquote><p class="author">${esc(c.takenBy)}</p><button class="text-link" data-course-gate="${c.id}">${t("Read full review", "查看完整评价")} ↗</button></article>`).join("")}</div><div class="preview-unlock"><div><strong>${t("Find the experience that speaks to you.", "找到与你相关的修课经历。")}</strong><p>${t("Log in to unlock full reviews. Reading is free.", "登录后解锁完整评价，免费阅读。")}</p></div><button class="button" data-gate="workspace">${t("Read full reviews", "查看完整评价")} <span class="arrow">↗</span></button></div></section></main>${footer()}`;
-  }
-  function showDialog(title, body, foot = "", type = "") {
-    returnFocus = document.activeElement;
-    modal.className = "dialog " + type;
-    modal.innerHTML = `<div class="dialog-head"><h2 id="dialog-title">${title}</h2><button class="dialog-close" data-action="close" aria-label="${t("Close", "关闭")}">×</button></div><div class="dialog-body">${body}</div>${foot ? `<div class="dialog-foot">${foot}</div>` : ""}`;
-    if (!modal.open) modal.showModal();
-    document.body.style.overflow = "hidden";
-    requestAnimationFrame(() =>
-      modal
-        .querySelector(
-          "input:not([type=hidden]),textarea,.google-button,.dialog-close",
-        )
-        ?.focus(),
-    );
-  }
-  function close() {
-    delete modal.dataset.wallPerson;
-    if (modal.open) modal.close();
-    document.body.style.overflow = "";
-    returnFocus?.isConnected && returnFocus.focus();
+    const authLabel = currentSession
+      ? t("My profile", "个人名片")
+      : t("Sign in", "登录");
+    return `<header class="site-header">
+      <nav class="site-nav" aria-label="${t("Main navigation", "主导航")}">
+        <a href="./#/browse" data-gate="./#/browse">${t("Course library", "课程库")}</a>
+        <a href="guide.html">${t("Course guide", "选课指南")}</a>
+        <button class="lang" type="button" data-action="language" aria-label="${t("Switch to Chinese", "切换到英文")}">${t("中文", "EN")}</button>
+        <button class="signin" type="button" data-action="signin">${authLabel}</button>
+      </nav>
+    </header>`;
   }
 
-  function person(name) {
-    const p = allowedPeople().find((x) => x.name === name);
-    if (!p) return;
-    modal.dataset.wallPerson = p.name;
-    showDialog(
-      t("Meet the contributor", "认识贡献者"),
-      `<img class="person-dialog-image" src="src/site/landing/assets/${p.image}" alt="${p.name}"><h3 class="person-modal-name">${p.name}</h3><p class="muted">${p.term}</p><p>${zh() ? p.focusZh : p.focus}</p>`,
-      `<button class="button" data-author-gate="${p.name}">${t("Read their course experiences", "阅读 TA 的修课经历")} ↗</button>`,
-    );
+  function renderQuote(review) {
+    const destination = `./#/course/${encodeURIComponent(review.courseId)}`;
+    const body = zh()
+      ? `<p lang="${review.originalLang}">${esc(review.original)}</p>`
+      : `<p lang="en">${esc(review.translationEn)}</p>
+         <details class="quote-original">
+           <summary>Translated from Chinese original · Read original</summary>
+           <p lang="${review.originalLang}">${esc(review.original)}</p>
+         </details>`;
+    return `<blockquote>
+      ${body}
+      <div class="quote-footer">
+        <cite>${esc(review.author)}</cite>
+        <a class="quote-link" href="${destination}" data-gate="${destination}">${t("Read full review", "查看完整评价")} ↗</a>
+      </div>
+    </blockquote>`;
   }
-  function initWall() {
-    const viewport = $(".people-viewport");
-    if (!viewport) return;
-    const track = $(".people-track", viewport),
-      originals = [...track.children],
-      toggle = $('[data-action="wall-pause"]');
-    if (originals.length < 2) {
-      wallAction = null;
-      viewport.removeAttribute("tabindex");
-      wallCleanup = () => {
-        wallAction = null;
-      };
+
+  function renderVoicesPanel() {
+    const course = COURSE_PREVIEWS[activeCourseIndex];
+    const title = zh() ? course.titleZh : course.titleEn;
+    const courseLang = zh() ? course.languageZh : course.languageEn;
+    const destination = `./#/course/${encodeURIComponent(course.courseId)}`;
+    const ctaLabel =
+      course.reviews.length > 1
+        ? t("Read full reviews", "查看完整评价")
+        : t("Read full review", "查看完整评价");
+    return `<div class="bay-review-course">
+        <p class="course-meta">${esc(course.provider)} · ${esc(courseLang)}</p>
+        <h3 id="review-course-title">${esc(title)}</h3>
+      </div>
+      <div class="quotes">${course.reviews.map(renderQuote).join("")}</div>
+      <div class="course-actions">
+        <a class="button" href="${destination}" data-gate="${destination}">${ctaLabel} ↗</a>
+        <a class="detail-link" href="./#/browse" data-gate="./#/browse">${t("Browse all courses", "浏览全部课程")}</a>
+      </div>`;
+  }
+
+  function voicesSection() {
+    const total = COURSE_PREVIEWS.length;
+    return `<section class="voices" id="preview" aria-labelledby="voices-title">
+      <div class="voices-head">
+        <h2 id="voices-title">${t("What students remember", "这门课，上过才知道")}</h2>
+        <div class="carousel-tools">
+          <span class="counter" aria-live="polite">${activeCourseIndex + 1} / ${total}</span>
+          <button class="circle" type="button" data-action="prev" aria-label="${t("Previous course", "上一门课")}" aria-disabled="${activeCourseIndex === 0}">←</button>
+          <button class="circle" type="button" data-action="next" aria-label="${t("Next course", "下一门课")}" aria-disabled="${activeCourseIndex === total - 1}">→</button>
+        </div>
+      </div>
+      <article class="voice-panel" aria-labelledby="review-course-title" data-course-key="${COURSE_PREVIEWS[activeCourseIndex].key}">
+        ${renderVoicesPanel()}
+      </article>
+    </section>`;
+  }
+
+  function catalogEntry() {
+    return `<section class="official-band" aria-labelledby="catalog-entry-title">
+      <h2 id="catalog-entry-title">${t("Find your next course", "找到你的下一门课")}</h2>
+      <a class="button" href="./#/browse" data-gate="./#/browse">${t("Explore courses", "探索课程")}</a>
+    </section>`;
+  }
+
+  function footerInner() {
+    return `<p class="bay-footer-journey">${t("A university journey.", "一段大学旅程。")}<br>${t("A community along the way.", "一路同行的社区。")}</p>
+      <p class="bay-footer-wordmark">RateMyCourse</p>
+      <div class="bay-footer-meta">
+        <span>© 2026 RateMyCourse · WaseCrew</span>
+        <span>${t("Built around student perspectives.", "从学生的真实视角出发。")}</span>
+        <a href="guide.html">${t("Course guide", "选课指南")}</a>
+        <details class="bay-footer-credits">
+          <summary>${t("Artwork credits", "素材署名")}</summary>
+          ${renderBayCredits(t)}
+        </details>
+      </div>`;
+  }
+
+  function footer() {
+    return `<footer class="bay-footer"><div class="bay-footer-inner">${footerInner()}</div></footer>`;
+  }
+
+  function syncStudentCarousel() {
+    const section = $("#community");
+    const host = $(".student-carousel-mount");
+    studentCarousel.unmount();
+    studentCarousel = { setLang() {}, unmount() {} };
+    const token = ++studentMountToken;
+
+    if (!section || !host) return;
+    if (!allowedWallIds.size) {
+      section.hidden = true;
+      window.ScrollTrigger?.refresh();
       return;
     }
-    const reduced = matchMedia("(prefers-reduced-motion:reduce)"),
-      mobile = matchMedia("(max-width:700px)");
-    let paused = false,
-      hover = false,
-      focus = false,
-      visible = false,
-      raf = 0,
-      last = 0,
-      position = 0,
-      span = 0,
-      origin = 0,
-      manualTween = null,
-      destroyed = false;
-    const landing = !!$(".hero");
-    function cloneGroup() {
-      return originals.map((card) => {
-        const clone = card.cloneNode(true);
-        clone.dataset.wallClone = "";
-        clone.setAttribute("aria-hidden", "true");
-        clone
-          .querySelectorAll("a,button,input,select,textarea,[tabindex]")
-          .forEach((el) => (el.tabIndex = -1));
-        return clone;
+
+    section.hidden = false;
+    import("./student-carousel/index.js")
+      .then(({ mountStudentCarousel }) => {
+        if (destroyed || token !== studentMountToken || !host.isConnected) return;
+        studentCarousel = mountStudentCarousel(host, {
+          lang,
+          allowedIds: allowedWallIds,
+          onSelectPerson(person) {
+            void gate(`./#/browse?author=${encodeURIComponent(person.profileId)}`);
+          },
+        });
+        window.ScrollTrigger?.refresh();
+      })
+      .catch(() => {
+        if (destroyed || token !== studentMountToken || !section.isConnected)
+          return;
+        section.hidden = true;
+        window.ScrollTrigger?.refresh();
       });
-    }
-    // Repeated visual groups frame the three original, keyboard-accessible cards.
-    // Pointer actions keep the original author mapping; clones never enter Tab order.
-    if (landing) {
-      track.prepend(...cloneGroup(), ...cloneGroup());
-      track.append(...cloneGroup(), ...cloneGroup());
-    }
-    function setup() {
-      manualTween?.kill();
-      const loop = landing && !mobile.matches;
-      track
-        .querySelectorAll("[data-wall-clone]")
-        .forEach((el) => (el.hidden = !loop));
-      span = loop ? originals[1].offsetLeft - originals[0].offsetLeft : 0;
-      span *= originals.length;
-      origin = loop ? originals[0].offsetLeft - track.offsetLeft : 0;
-      position = origin;
-      viewport.scrollLeft = position;
-      last = 0;
-      const off = reduced.matches || mobile.matches;
-      toggle.disabled = off;
-      toggle.textContent = off
-        ? t("Motion off", "已关闭自动滚动")
-        : paused
-          ? t("Resume motion", "继续滚动")
-          : t("Pause motion", "暂停滚动");
-      toggle.setAttribute("aria-pressed", String(paused));
-    }
-    function normalise() {
-      if (!span || focus) return;
-      const lower = origin - span,
-        upper = origin + span;
-      if (position < lower || position >= upper) {
-        position = origin + ((((position - origin) % span) + span) % span);
-        viewport.scrollLeft = position;
-      }
-    }
-    function running() {
-      return (
-        !destroyed &&
-        !paused &&
-        !hover &&
-        !focus &&
-        visible &&
-        !document.hidden &&
-        !modal.open &&
-        !reduced.matches &&
-        !mobile.matches &&
-        viewport.scrollWidth > viewport.clientWidth
-      );
-    }
-    function tick(time) {
-      raf = 0;
-      const dt = Math.min(time - (last || time), 45);
-      last = time;
-      if (running()) {
-        position += dt * 0.036;
-        normalise();
-        viewport.scrollLeft = position;
-      }
-      raf = requestAnimationFrame(tick);
-    }
-    function start() {
-      if (!raf && !destroyed) {
-        last = 0;
-        raf = requestAnimationFrame(tick);
-      }
-    }
-    viewport.addEventListener("mouseenter", () => {
-      hover = true;
-      manualTween?.kill();
-      position = viewport.scrollLeft;
-    });
-    viewport.addEventListener("mouseleave", () => {
-      hover = false;
-      position = viewport.scrollLeft;
-      last = 0;
-    });
-    viewport.addEventListener("focusin", () => {
-      focus = true;
-      manualTween?.kill();
-      position = viewport.scrollLeft;
-    });
-    viewport.addEventListener("focusout", (e) => {
-      focus = viewport.contains(e.relatedTarget);
-      position = viewport.scrollLeft;
-      normalise();
-      last = 0;
-    });
-    track.addEventListener("pointerdown", (e) => {
-      if (e.target.closest("[data-wall-clone]")) e.preventDefault();
-    });
-    viewport.addEventListener("pointerdown", () => {
-      manualTween?.kill();
-      position = viewport.scrollLeft;
-    });
-    viewport.addEventListener(
-      "wheel",
-      () => {
-        manualTween?.kill();
-        position = viewport.scrollLeft;
-      },
-      { passive: true },
-    );
-    viewport.addEventListener(
-      "scroll",
-      () => {
-        if (!running() && !manualTween) {
-          position = viewport.scrollLeft;
-          normalise();
-        }
-      },
-      { passive: true },
-    );
-    wallAction = (a) => {
-      if (a === "wall-pause") {
-        paused = !paused;
-        toggle.textContent = paused
-          ? t("Resume motion", "继续滚动")
-          : t("Pause motion", "暂停滚动");
-        toggle.setAttribute("aria-pressed", String(paused));
-        position = viewport.scrollLeft;
-        last = 0;
-        return;
-      }
-      paused = true;
-      toggle.setAttribute("aria-pressed", "true");
-      if (!toggle.disabled) toggle.textContent = t("Resume motion", "继续滚动");
-      manualTween?.kill();
-      position = viewport.scrollLeft;
-      let target;
-      if (span) {
-        const distance = originals[1].offsetLeft - originals[0].offsetLeft;
-        target = position + (a === "wall-next" ? 1 : -1) * distance;
-      } else {
-        const max = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
-        const stops = [
-          ...new Set(
-            originals.map((card) =>
-              Math.max(0, Math.min(max, card.offsetLeft - track.offsetLeft)),
-            ),
-          ),
-        ];
-        target =
-          a === "wall-next"
-            ? (stops.find((x) => x > position + 1) ?? max)
-            : ([...stops].reverse().find((x) => x < position - 1) ?? 0);
-      }
-      if (window.gsap && !reduced.matches) {
-        const value = { x: position };
-        manualTween = gsap.to(value, {
-          x: target,
-          duration: 0.42,
-          ease: "power2.out",
-          onUpdate() {
-            position = value.x;
-            normalise();
-            viewport.scrollLeft = position;
-          },
-          onComplete() {
-            manualTween = null;
-            position = viewport.scrollLeft;
-            normalise();
-          },
-        });
-      } else {
-        position = target;
-        normalise();
-        viewport.scrollLeft = position;
-      }
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        visible = entries[0].isIntersecting;
-        last = 0;
-      },
-      { threshold: 0.05 },
-    );
-    observer.observe(viewport);
-    reduced.addEventListener("change", setup);
-    mobile.addEventListener("change", setup);
-    window.addEventListener("resize", setup);
-    setup();
-    start();
-    wallCleanup = () => {
-      destroyed = true;
-      cancelAnimationFrame(raf);
-      manualTween?.kill();
-      observer.disconnect();
-      reduced.removeEventListener("change", setup);
-      mobile.removeEventListener("change", setup);
-      window.removeEventListener("resize", setup);
-      wallAction = null;
-    };
   }
-  function initMotion() {
-    if (!$(".hero")) return;
-    app.classList.add("landing-app");
-    const decor = (host, cls, src) => {
-      if (!host) return;
-      const el = document.createElement(src ? "img" : "div");
-      el.className = cls;
-      el.setAttribute("aria-hidden", "true");
-      if (src) {
-        el.src = src;
-        el.alt = "";
-      }
-      host.prepend(el);
-      return el;
-    };
-    decor($(".hero"), "wave-depth", "src/site/landing/assets/sea-blue.svg");
-    decor(
-      $("#features"),
-      "shallows-lines",
-      "src/site/landing/assets/sea-blue.svg",
-    );
-    decor($(".feature.reverse"), "tide-surface");
-    decor(
-      $(".feature.reverse"),
-      "tide-lines",
-      "src/site/landing/assets/sea-blue.svg",
-    );
-    decor(
-      $(".future-feature"),
-      "deep-lines",
-      "src/site/landing/assets/sea-blue.svg",
-    );
-    decor($(".preview"), "paper-shore");
-    decor(
-      $(".site-footer"),
-      "footer-tide",
-      "src/site/landing/assets/sea-blue.svg",
-    );
-    if (!window.gsap || !window.ScrollTrigger) return;
-    gsap.registerPlugin(ScrollTrigger);
-    const mm = gsap.matchMedia();
-    mm.add(
-      {
-        full: "(min-width:701px)",
-        small: "(max-width:700px)",
-        reduce: "(prefers-reduced-motion:reduce)",
-      },
-      (context) => {
-        const { small, reduce } = context.conditions;
-        if (reduce) return;
-        const factor = small ? 0.42 : 1;
-        // Copy stays in the document flow. Only scenery travels at different depths.
-        const hero = gsap.timeline({
-          scrollTrigger: {
-            trigger: ".hero",
-            start: "top top",
-            end: "bottom top",
-            scrub: true,
-          },
-        });
-        hero
-          .to(
-            ".ship-background",
-            {
-              x: -95 * factor,
-              y: 175 * factor,
-              scale: small ? 1.1 : 1.28,
-              opacity: 0.14,
-              ease: "none",
-            },
-            0,
-          )
-          .to(
-            ".wave-depth",
-            { x: -270 * factor, y: -110 * factor, scale: 1.08, ease: "none" },
-            0,
-          )
-          .to(
-            ".waves",
-            {
-              x: 235 * factor,
-              y: -210 * factor,
-              scale: 1.16,
-              opacity: 0.4,
-              ease: "none",
-            },
-            0,
-          );
-        gsap.fromTo(
-          "#features",
-          { backgroundColor: "#ede7dc" },
-          {
-            backgroundColor: "#dcd6c5",
-            ease: "none",
-            scrollTrigger: {
-              trigger: "#features",
-              start: "top 90%",
-              end: "bottom 20%",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".shallows-lines",
-          { x: 210 * factor, y: 90 * factor },
-          {
-            x: -160 * factor,
-            y: -100 * factor,
-            ease: "none",
-            scrollTrigger: {
-              trigger: "#features",
-              start: "top bottom",
-              end: "bottom top",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".tide-surface",
-          { xPercent: 20, yPercent: 45, rotate: -8 },
-          {
-            xPercent: -14,
-            yPercent: -30,
-            rotate: 7,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".feature.reverse",
-              start: "top bottom",
-              end: "bottom top",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".tide-lines",
-          { x: 130 * factor, y: 135 * factor },
-          {
-            x: -210 * factor,
-            y: -150 * factor,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".feature.reverse",
-              start: "top bottom",
-              end: "bottom top",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".future-feature",
-          { backgroundColor: "#38212b" },
-          {
-            backgroundColor: "#191b1d",
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".future-feature",
-              start: "top 85%",
-              end: "bottom 20%",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".deep-lines",
-          { x: -140 * factor, y: 100 * factor },
-          {
-            x: 180 * factor,
-            y: -180 * factor,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".future-feature",
-              start: "top bottom",
-              end: "bottom top",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".paper-shore",
-          { scaleX: 1.35, y: 65 * factor },
-          {
-            scaleX: 1,
-            y: -14 * factor,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".preview",
-              start: "top bottom",
-              end: "top 15%",
-              scrub: true,
-            },
-          },
-        );
-        gsap.fromTo(
-          ".footer-tide",
-          { x: 110 * factor, y: 90 * factor },
-          {
-            x: -200 * factor,
-            y: -100 * factor,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".site-footer",
-              start: "top bottom",
-              end: "bottom bottom",
-              scrub: true,
-            },
-          },
-        );
-      },
-    );
-    animCleanup = () => {
-      mm.revert();
-      app.classList.remove("landing-app");
-    };
+
+  function updateCourseCarousel() {
+    const panel = $(".voice-panel");
+    if (!panel) return;
+    const total = COURSE_PREVIEWS.length;
+    panel.dataset.courseKey = COURSE_PREVIEWS[activeCourseIndex].key;
+    panel.innerHTML = renderVoicesPanel();
+    const counter = $(".voices .counter");
+    if (counter) counter.textContent = `${activeCourseIndex + 1} / ${total}`;
+    const prev = $('.voices [data-action="prev"]');
+    const next = $('.voices [data-action="next"]');
+    prev?.setAttribute("aria-disabled", String(activeCourseIndex === 0));
+    next?.setAttribute("aria-disabled", String(activeCourseIndex === total - 1));
   }
-  function render() {
-    wallCleanup();
-    animCleanup();
-    app.classList.add("landing-app");
+
+  function stepCourse(delta) {
+    const next = Math.max(
+      0,
+      Math.min(COURSE_PREVIEWS.length - 1, activeCourseIndex + delta),
+    );
+    if (next === activeCourseIndex) return;
+    activeCourseIndex = next;
+    updateCourseCarousel();
+  }
+
+  // Update copy in place on language toggle so scroll position, GSAP ScrollTrigger,
+  // focus on the language button, and the 3D carousel remain undisturbed.
+  function updateLanguageInPlace() {
     document.documentElement.lang = zh() ? "zh-CN" : "en";
-    app.innerHTML = landing();
-    initWall();
-    initMotion();
+
+    const nav = $(".site-nav", app);
+    if (nav) {
+      nav.setAttribute("aria-label", t("Main navigation", "主导航"));
+      const [coursesLink, guideLink, langBtn, signBtn] = nav.children;
+      if (coursesLink) coursesLink.textContent = t("Course library", "课程库");
+      if (guideLink) guideLink.textContent = t("Course guide", "选课指南");
+      if (langBtn) {
+        langBtn.textContent = t("中文", "EN");
+        langBtn.setAttribute(
+          "aria-label",
+          t("Switch to Chinese", "切换到英文"),
+        );
+      }
+      if (signBtn) {
+        signBtn.textContent = currentSession
+          ? t("My profile", "个人名片")
+          : t("Sign in", "登录");
+      }
+    }
+
+    updateBayHeroCopy($(".bay-hero", app), t);
+    studentCarousel.setLang(lang);
+
+    const voicesTitle = $("#voices-title", app);
+    if (voicesTitle)
+      voicesTitle.textContent = t("What students remember", "这门课，上过才知道");
+    $('.voices [data-action="prev"]', app)?.setAttribute(
+      "aria-label",
+      t("Previous course", "上一门课"),
+    );
+    $('.voices [data-action="next"]', app)?.setAttribute(
+      "aria-label",
+      t("Next course", "下一门课"),
+    );
+    updateCourseCarousel();
+
+    const catalogTitle = $("#catalog-entry-title", app);
+    if (catalogTitle)
+      catalogTitle.textContent = t("Find your next course", "找到你的下一门课");
+    const catalogBtn = $(".official-band .button", app);
+    if (catalogBtn) catalogBtn.textContent = t("Explore courses", "探索课程");
+
+    const footerContent = $(".bay-footer-inner", app);
+    if (footerContent) footerContent.innerHTML = footerInner();
   }
-  function auth() {
-    showDialog(
-      "RateMyCourse",
-      `<div class="auth-layout"><div class="auth-story"><h2>${t("A community<br>along the way.", "一路同行的社区。")}</h2><p>${t("Read real course experiences. Get to know the people who shared them.", "阅读真实修课经历，认识分享经历的人。")}</p></div><div class="auth-form"><h3>${t("Welcome to the community.", "欢迎加入社区。")}</h3><p class="muted">${t("Sign in with Google to continue to the course community.", "使用 Google 登录，继续进入课程社区。")}</p><button class="button outline google-button" data-action="google"><span class="google-letter" aria-hidden="true">G</span>${t("Continue with Google", "使用 Google 继续")}</button><p class="form-error" id="auth-error" role="alert"></p><p class="auth-note">${t("Your profile and each review have their own visibility settings.", "个人资料与每条评价均可分别选择公开方式。")}</p></div></div>`,
-      "",
-      "auth-full",
+
+  function render() {
+    stopHero();
+    stopHero = () => {};
+    studentCarousel.unmount();
+    studentCarousel = { setLang() {}, unmount() {} };
+
+    document.documentElement.lang = zh() ? "zh-CN" : "en";
+    document.title = "RateMyCourse · Chart your own course.";
+    app.className = "bay-landing";
+    app.innerHTML = `${header()}<main id="main" tabindex="-1">${renderBayHero(t)}<section class="student-carousel-section" id="community" hidden><div class="student-carousel-mount"></div></section>${voicesSection()}${catalogEntry()}</main>${footer()}`;
+
+    stopHero = mountBayScroll($(".bay-hero", app));
+    syncStudentCarousel();
+  }
+
+  function showAuthDialog() {
+    returnFocus = deepActiveElement();
+    modal.className = "bay-dialog";
+    modal.innerHTML = `<div class="dialog-head">
+        <h2 id="dialog-title">RateMyCourse</h2>
+        <button class="dialog-close" type="button" data-action="close" aria-label="${t("Close", "关闭")}">×</button>
+      </div>
+      <div class="dialog-body">
+        <div class="auth-layout">
+          <div class="auth-story">
+            <h3>${t("A community<br>along the way.", "一路同行的社区。")}</h3>
+            <p>${t("Read real course experiences. Get to know the people who shared them.", "阅读真实修课经历，认识分享经历的人。")}</p>
+          </div>
+          <div class="auth-form">
+            <h4>${t("Welcome to the community.", "欢迎加入社区。")}</h4>
+            <p class="muted">${t("Sign in with Google to continue to the course community.", "使用 Google 登录，继续进入课程社区。")}</p>
+            <button class="google-button" type="button" data-action="google">
+              <span class="google-letter" aria-hidden="true">G</span>
+              ${t("Continue with Google", "使用 Google 继续")}
+            </button>
+            <p class="form-error" id="auth-error" role="alert"></p>
+            <p class="auth-note">${t("Your profile and each review have their own visibility settings.", "个人资料与每条评价均可分别选择公开方式。")}</p>
+          </div>
+        </div>
+      </div>`;
+    if (!modal.open) modal.showModal();
+    document.body.classList.add("dialog-open");
+    requestAnimationFrame(() =>
+      modal.querySelector(".google-button,.dialog-close")?.focus(),
     );
   }
+
+  function closeDialog() {
+    if (modal.open) modal.close();
+  }
+
   function navigate(destination) {
-    close();
+    closeDialog();
     location.assign(destination);
   }
 
@@ -701,71 +360,34 @@ export function mountLanding() {
     return auth;
   }
 
-  function applyWallVisibility(ids) {
-    const changed =
-      [...allowedWallIds].sort().join(",") !== [...ids].sort().join(",");
-    allowedWallIds = ids;
-    if (
-      modal.dataset.wallPerson &&
-      !allowedPeople().some((p) => p.name === modal.dataset.wallPerson)
-    )
-      close();
-    if (!changed) return;
-    wallCleanup();
-    const host = $("#community");
-    if (host) {
-      host.outerHTML = wall();
-      initWall();
-      window.ScrollTrigger?.refresh();
-    }
-  }
-  async function refreshWall() {
-    if (destroyed || wallPending || document.visibilityState !== "visible")
-      return;
-    wallPending = true;
-    let timeout;
-    try {
-      const data = await getContributorWall();
-      if (destroyed) return;
-      const visibleIds = new Set(data.people.map((p) => p.id));
-      if (!destroyed)
-        applyWallVisibility(
-          new Set(
-            Object.values(wallProfileIds).filter((id) => visibleIds.has(id)),
-          ),
-        );
-    } catch (_) {
-      if (!destroyed) applyWallVisibility(new Set());
-    } finally {
-      clearTimeout(timeout);
-      wallPending = false;
-    }
-  }
   async function gate(destination = "./#/browse") {
     target = destination;
-    const hadSession = !!authClient?.session;
-    if (!hadSession) auth();
+    const hadSession = Boolean(currentSession || authClient?.session);
+    if (!hadSession) showAuthDialog();
     try {
-      const authClient = await resolveAuth();
-      await authClient.ready;
+      const client = await resolveAuth();
+      await client.ready;
       if (destroyed) return;
       if (!hadSession && !modal.open) return;
-      if (authClient.session) {
+      if (client.session) {
         navigate(target);
-        return;
       }
-    } catch (problem) {
-      if ($("#auth-error")) $("#auth-error").textContent = problem.message;
+    } catch (error) {
+      const box = $("#auth-error", modal);
+      if (box) box.textContent = error.message;
     }
   }
-  async function google() {
+
+  async function signInWithGoogle() {
     if (signingIn) return;
-    const button = $('[data-action="google"]'),
-      error = $("#auth-error");
+    const button = $('[data-action="google"]', modal);
+    const errorBox = $("#auth-error", modal);
+    if (!button || !errorBox) return;
+
     signingIn = true;
     button.disabled = true;
     button.setAttribute("aria-busy", "true");
-    error.textContent = "";
+    errorBox.textContent = "";
     try {
       const client = await resolveAuth();
       await client.ready;
@@ -776,14 +398,13 @@ export function mountLanding() {
             "登录暂不可用，请刷新后重试。",
           ),
         );
-      // auth-client.js preserves community# routes through the existing OAuth callback.
       await client.signInWithGoogle(
         "community" + new URL(target, location.href).hash,
       );
-    } catch (problem) {
-      if (error.isConnected)
-        error.textContent =
-          problem?.message ||
+    } catch (error) {
+      if (errorBox.isConnected)
+        errorBox.textContent =
+          error?.message ||
           t(
             "Could not start Google sign-in. Try again.",
             "未能启动 Google 登录，请重试。",
@@ -796,48 +417,107 @@ export function mountLanding() {
       }
     }
   }
+
+  function applyWallVisibility(nextIds) {
+    const prevKey = [...allowedWallIds].sort().join(",");
+    const nextKey = [...nextIds].sort().join(",");
+    if (prevKey === nextKey) return;
+    allowedWallIds = nextIds;
+    syncStudentCarousel();
+  }
+
+  async function refreshWall() {
+    if (destroyed || wallPending || document.visibilityState !== "visible")
+      return;
+    wallPending = true;
+    try {
+      const data = await getContributorWall();
+      if (destroyed) return;
+      const liveIds = new Set((data?.people || []).map((p) => p.id));
+      applyWallVisibility(
+        new Set(FEATURED_WALL_IDS.filter((id) => liveIds.has(id))),
+      );
+    } catch {
+      // Fail closed: never display opted-out or unverified contributors on read failure.
+      if (!destroyed) applyWallVisibility(new Set());
+    } finally {
+      wallPending = false;
+    }
+  }
+
   listen(document, "click", (event) => {
-    const el = event.target.closest(
-      "[data-action],[data-gate],[data-course-gate],[data-person],[data-author-gate]",
-    );
+    const el = event.target.closest("[data-action],[data-gate]");
     if (!el || (!app.contains(el) && !modal.contains(el))) return;
-    event.preventDefault();
-    if (el.dataset.person) {
-      person(el.dataset.person);
+
+    if (el.dataset.gate) {
+      event.preventDefault();
+      void gate(el.dataset.gate);
       return;
     }
-    if (el.dataset.courseGate) {
-      const id = courseTargets[el.dataset.courseGate];
-      void gate(id ? "./#/course/" + id : "./#/browse");
-      return;
-    }
-    if (el.dataset.gate || el.dataset.authorGate) {
-      void gate();
-      return;
-    }
+
     const action = el.dataset.action;
-    if (action === "close") close();
-    if (action === "signin")
-      void gate(authClient?.session ? "./#/profile" : "./#/browse");
-    if (action === "google") void google();
-    if (action === "language") {
+    if (action === "close") {
+      event.preventDefault();
+      closeDialog();
+    } else if (action === "signin") {
+      event.preventDefault();
+      void gate(
+        currentSession || authClient?.session ? "./#/profile" : "./#/browse",
+      );
+    } else if (action === "google") {
+      event.preventDefault();
+      void signInWithGoogle();
+    } else if (action === "language") {
+      event.preventDefault();
       lang = zh() ? "en" : "zh";
       try {
         localStorage.setItem("odyssey-community-language", lang);
       } catch {}
-      render();
+      updateLanguageInPlace();
+    } else if (action === "prev") {
+      event.preventDefault();
+      stepCourse(-1);
+    } else if (action === "next") {
+      event.preventDefault();
+      stepCourse(1);
     }
-    if (action.startsWith("wall-")) wallAction?.(action);
   });
-  listen(modal, "cancel", () => (document.body.style.overflow = ""));
-  listen(modal, "close", () => (document.body.style.overflow = ""));
-  listen(window, "sils:auth", () => {
-    const button = $(".site-nav .signin");
-    if (button)
-      button.textContent = authClient?.session
-        ? t("My profile ↗", "个人名片 ↗")
-        : t("Sign in ↗", "登录 ↗");
+
+  // Touch/pen swipe on course review panel; leave mouse drag free for text selection.
+  listen(app, "pointerdown", (event) => {
+    if (event.pointerType === "mouse") return;
+    if (!event.target.closest(".voice-panel")) return;
+    swipeStart = { id: event.pointerId, x: event.clientX, y: event.clientY };
   });
+
+  listen(app, "pointercancel", (event) => {
+    if (swipeStart?.id === event.pointerId) swipeStart = null;
+  });
+
+  listen(app, "pointerup", (event) => {
+    if (!swipeStart || swipeStart.id !== event.pointerId) return;
+    const dx = event.clientX - swipeStart.x;
+    const dy = event.clientY - swipeStart.y;
+    swipeStart = null;
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+      stepCourse(dx < 0 ? 1 : -1);
+    }
+  });
+
+  listen(modal, "click", (event) => {
+    if (event.target === modal) closeDialog();
+  });
+
+  listen(modal, "close", () => {
+    document.body.classList.remove("dialog-open");
+    if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
+    returnFocus = null;
+  });
+
+  listen(window, "sils:auth", (event) => {
+    syncAuthButton(event.detail?.session ?? authClient?.session ?? null);
+  });
+
   const wallInterval = setInterval(() => {
     if (document.visibilityState === "visible") void refreshWall();
   }, 60000);
@@ -845,19 +525,19 @@ export function mountLanding() {
   listen(document, "visibilitychange", () => {
     if (document.visibilityState === "visible") void refreshWall();
   });
-  const lifecycle = {
+
+  render();
+  void refreshWall();
+
+  return {
     destroy() {
       destroyed = true;
       clearInterval(wallInterval);
       controller.abort();
-      wallCleanup();
-      animCleanup();
+      stopHero();
+      studentCarousel.unmount();
       if (modal.open) modal.close();
-      document.body.style.overflow = "";
-      app.classList.remove("landing-app");
+      document.body.classList.remove("dialog-open");
     },
   };
-  render();
-  void refreshWall();
-  return lifecycle;
 }

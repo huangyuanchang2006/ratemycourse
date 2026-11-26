@@ -1,47 +1,51 @@
 # RateMyCourse · Design
 
-2026-11-09：正式工作区恢复 fbdc3f1 的暖纸与编辑式呈现；Tabler 侧栏改版退出当前正式体验。Landing 保持原状；新方向尚未实施。
+更新：2026-11-26（日本时间）。这是现行视觉与交互约定的入口，不是旧原型集合。产品规则见 [PRD.md](PRD.md)，module 及资产迁移见 [ARCH.md](ARCH.md)。
 
-更新：2026-11-01（日本时间）。这是现行视觉与交互约定的入口，不是旧原型集合。产品规则见 [PRD.md](PRD.md)，module 及资产迁移见 [ARCH.md](ARCH.md)。
-
-状态：按 `77a2aea` 的页面与既有批准记录整理；资源已按六个 module 迁移，保持既有 UI，没有复制作者正文或制作新视觉方案。
+状态：首页已切换为获批的**蓝调「岩岸海湾」**正式版本；课程工作区（`#/browse`、`#/course/:id`、`#/share`、`#/profile`、`guide.html`、`analytics.html`）保持既有暖纸／酒红界面与交互不变。
 
 ## 1. 设计方向
 
-以文字层级、暖纸背景、墨色和酒红组织课程信息；保留航行的意象，帮助定位和理解，不让主题压过真实经历与任务操作。
+- **Landing（蓝调岩岸海湾）**：以倒悬东京夜城、深海蓝湾、暖光孤帆与授权改编的蓝调枝叶前景构建“出发与探索”的首屏叙事；随后过渡到深海蓝社区与阅读界面（深海蓝 `#132d3f` 卡片 + 帆布琥珀 `#e6b37c` 主操作），让视线聚焦在具体学生与真实修课原话。主标题 `Chart your own course`，第二拍承接 `RateMyCourse` 与 `Your Major is a Starting Point`。
+- **课程工作区（既有保持）**：沿用暖纸背景、墨色文字与早大酒红强调，保证长文评价阅读与表单填写的清晰层级；本轮未改动工作区 UI/UX 或动效。
 
-早期选择是「C 的编辑层级 + B 的航线反馈 + A 的按钮反馈」。后续已演变为 RateMyCourse Landing 与课程工作区，不照搬原 SILS 演示的全部章节或旧人物主次。
-
-当前首页以 `Chart your own course.` 为核心标题。品牌使用 RateMyCourse；历史文件中的 Odyssey 是来源，不代表当前页面须恢复旧品牌。
+品牌统一使用 **RateMyCourse**；历史文件中的 Odyssey 是来源，不代表恢复旧品牌。
 
 ## 2. 现有视觉语汇
 
-这是现状记录，不是已完成统一的 token 系统。重组阶段保持渲染；后续统一色值或字体应另做视觉核对。
+Landing 与课程工作区当前各自维护独立样式表，未强行合并为一套 token；后续如需统一工作区视觉，另行设计评审。
 
-| 用途 | Landing | 课程工作区 |
+| 用途 | Landing（蓝调岩岸海湾） | 课程工作区（既有暖纸） |
 | --- | --- | --- |
-| 纸色 | `#f5f2eb` | `#f6f3ee` |
-| 表面 | `#fcfaf5` | `#fffdfa` |
-| 主文字 | `#201d19` | `#292522` |
-| 次文字 | `#655e56` | `#746d65` |
-| 酒红 | `#8c2038` | `#7a1731` |
-| 分隔线 | `#cfc8bb` | `#ddd6cb` |
+| 主底色 | `#082034`（夜湾）／`#081926`（深海）／`#0c1c29`（阅读底） | `#f6f3ee` |
+| 卡片表面 | `#132d3f`（课程卡）／`#102c37`（名片背面） | `#fffdfa` |
+| 主文字 | `#f8f2e6`（首屏）／`#f2f0ea`（正文） | `#292522` |
+| 次文字 | `#bccad3`／`#b1c6cc` | `#746d65` |
+| 强调色 | `#e6b37c`（帆布琥珀） | `#7a1731`（酒红） |
+| 分隔线 | `#4a6172`（阅读区）／`#29434d`（名片区） | `#ddd6cb` |
 
-工作区另有绿色、琥珀及其浅底，用于现有分组和状态。不能仅靠颜色传达状态。
-
-Landing 当前本地字体包含 Space Grotesk、Hanken Grotesk、JetBrains Mono；许可证与字体文件一起保留。工作区的字体规则保持现有 CSS，不在结构迁移中顺带换字。
+Landing 本地字体包含 Space Grotesk、Hanken Grotesk、JetBrains Mono；许可证与字体文件一起保留。工作区字体规则保持现有 CSS。
 
 ## 3. 信息与交互
 
-### Landing
+### Landing（正式五段结构）
 
-- 首屏建立项目含义和进入课程的动作；主题背景保持辅助地位。
-- 人物、Features、四段真实评价预览与 Footer 构成当前页面主要内容。
-- AI 助手明确为规划状态；没有的视频、证言、统计或付费能力不伪造完成。
-- 人物展示尊重现有公开状态；静态预览不称实时同步。
-- 登录浮层可以关闭；失败保留上下文，返回目标沿用真实认证路径。
+1. **固定顶栏（`.site-header`）**：桌面及手机均为单行四等分网格（课程库、选课指南、中英切换、登录／个人名片），每项 `min-height: 44px`，顶缘渐隐深蓝背景不遮挡主体阅读。
+2. **两拍海湾 Hero（`bay-hero.js`）**：
+   - 首拍展示倒悬东京城景、夜帆与倒影、蓝调原图枝叶前景（按窗口宽高比等比取景，保留原 Alpha 与叶形，通过 sRGB 矩阵调蓝）、主标题、早大开放课副文案、`Explore courses` 按钮，以及底部 3 秒周期轻浮的小帆船提示。
+   - 随滚动进入第二拍：背景渐暗、小帆船淡出、居中浮现 `RateMyCourse` 与产品介绍；随后 1px 白色实线从裁切窗上缘进入并向下退出，引导进入社区模块。
+3. **3D 环形学生名片轮播（`student-carousel/`）**：
+   - Shadow DOM 隔离样式；保持获批的圆柱几何参数、入场旋转、拖拽／方向键浏览、悬停暂停、点击／回车翻转查看学生背景与修课列表，以及 Escape 返回写真并恢复键盘焦点。
+   - 严格受实时 `getContributorWall()` 控制（fail-closed：读取失败或全员撤墙时隐藏整个区段，不显示过期或撤墙名片）。
+4. **课程原话轮播（`.voices`）**：
+   - 深海蓝卡片 + 帆布琥珀主操作；桌面左列课程信息与操作、右列纵向排布学生原话；窄屏按课程 → 原话 → 操作纵向排列。支持箭头按钮与手势左／右滑切课。
+   - 中文模式直接展示作者中文原文；英文模式清晰标注译文来源，并保留可展开查看的中文原文，绝不将译文冒充原话。
+5. **目录入口与居中页脚（`.official-band` / `.bay-footer`）**：
+   - 底部 `Find your next course` 与 `Explore courses` 主按钮；页脚居中呈现两行旅程文案、巨幅 `RateMyCourse` 字标、版权与选课指南入口，素材署名默认折叠在 `<details>` 中（仅列实际使用的东京塔 CC BY 2.0 改编与获授权的 Joseph Berry 枝叶改编）。
+6. **真实 Google 登录弹窗（`dialog.bay-dialog`）**：
+   - 首页所有受控业务入口（课程库、探索课程、学生名片查看经历、课程原话查看完整评价、登录按钮）在未登录时打开深海蓝 Google 登录弹窗，保留具体返回路由；已登录时直接跳转目标路由。弹窗支持 `×`、点击遮罩与 Escape 关闭，并恢复焦点；OAuth 失败显示错误并可重试。
 
-### 找课与阅读
+### 找课与阅读（工作区既有约定，本轮未改）
 
 - 课程名称、教师、学期和课程事实帮助定位；作者与教师分别标识。
 - 四项指标同时可见，不做只能逐个点击的 tab；缺值与不确定使用明确文字。
@@ -50,7 +54,7 @@ Landing 当前本地字体包含 Space Grotesk、Hanken Grotesk、JetBrains Mono
 - 原文中的有效链接可由键盘操作；显示原文不因界面语言切换被替换成译写。
 - 手机上 fit／avoid 及拥挤信息自然纵向排列，不靠裁掉内容保持卡片高度。
 
-### 投稿与个人名片
+### 投稿与个人名片（工作区既有约定，本轮未改）
 
 - 投稿按阅读卡片组织；完整公开内容预览复用阅读呈现，清楚标明尚待提交／审核。
 - 返回修改、确认提交、保存中、失败重试具有明确反馈。不能用成功动画冒充持久化成功。
@@ -62,32 +66,29 @@ Landing 当前本地字体包含 Space Grotesk、Hanken Grotesk、JetBrains Mono
 ## 4. 动效与可访问性
 
 - 保留原生滚动，不劫持滚轮，不以强制吸附代替导航。
-- 动效用于位置、状态或可逆操作反馈；一次不要让多个持续循环争夺主焦点。
-- 持续滚动支持暂停；hover／focus 及离屏状态按已有行为处理；手机或减少动态模式允许手动浏览。
-- 尊重 `prefers-reduced-motion`，关闭位移或循环后信息和操作仍完整。
-- 保留可见焦点、表单 label、键盘操作、对话框焦点及关闭方式、错误与状态反馈。
-- 迁移资产或 CSS 后检查手机横向溢出、长标题、中文标签、链接和长段原文，不只查看首屏截图。
-- 不把旧原型宣称的字号／对比度目标当成全站已通过的结果；设计改动须按实际页面复核。
+- Hero 使用单一 GSAP ScrollTrigger scrub，阶段切换同步维护 `inert` 与 `aria-hidden` 并在焦点落在隐藏层时安全转移至舞台。
+- 尊重 `prefers-reduced-motion` 以及短横屏（视口高度 `< 560px`）：关闭滚动时间轴与小帆船漂浮后，两拍文案与 CTA 在正常文档流中完整可读可操作。
+- 遮罩渐变同时声明 `-webkit-mask-image` 与 `mask-image` 以兼容 Safari；视口高度同时提供 `100vh` 与 `100svh`。
+- 持续旋转的环形轮播支持悬停、聚焦、离屏和标签页隐藏时自动暂停，减少动态模式下关闭入场旋转与翻转过渡。
+- 正式发布前须结合桌面／手机 Chrome 自动化验收以及**实体手机 Safari 实测**确认滚动、裁切与触控手感。
 
 ## 5. 视觉资产与历史方案
 
 | 资产 | 当前政策 |
 | --- | --- |
-| 正在使用的图片、字体、vendor | 继续保留，路径迁移时更新所有引用；许可证不能丢。 |
-| 跨页面确实共用的资产 | 可放根 `assets/`；专用资产归所属 module，避免建立巨大的通用素材堆。 |
-| 旧 `design-demos/` HTML 与 screenshots | 已移入网站仓库之外的本地归档；保留源文件、截图、设计说明与需要的依赖。 |
-| 已放弃方向 | 留作历史参考，不继续出现在当前代码入口，也不自动成为待实现需求。 |
-| 将来重新使用的方向 | 从归档提取候选并明确实验状态；选定后只合并相关规则／资产，更新本文件。 |
+| `src/site/landing/assets/bay/`（7 张图） | 蓝调海湾正式素材：`bay-desktop.webp`、`bay-phone.webp`、`city.webp`、`city-mobile.webp`、`night-sail.webp`、`night-reflection.webp`、`background-min-3.png`（SHA-256 锁定）。 |
+| `src/site/landing/student-carousel/` | 预构建 ESM 运行包、4 位贡献者肖像、Hanken 字体及 4 份开源许可证；可编辑 `src/` 留在仓库内但被打包脚本排除出公开产物。 |
+| `src/site/landing/assets/` 字体与许可证 | Space Grotesk、Hanken Grotesk、JetBrains Mono 及对应 `OFL-*.txt` 保留。 |
+| 根 `assets/`（3 张历史人物图） | 仍供工作区 `src/identity/wall.js` 使用，保持原路径不变。 |
+| 已淘汰的暖纸首页资产 | 已归档至仓库外 `Archive/Landing-WarmPaper-2026-11-26/`（含 `manifest.json` 哈希与恢复命令）；同时历史上缓存的已发布版本继续由 `pages-compatibility.json` 从 Git 历史按需打包保留。 |
+| 已淘汰的 A 版／东京建筑版／生成枝叶候选 | 不合入正式仓库；历史探索证据保留在本地 `Reference/` 与 `QA/`。 |
 
-当前 `assets/` 同时存在活跃人物图片与旧演示素材，不能整目录移走。重复图片也不能只因文件名或大小相同就删除，须查实际引用与内容。
-
-设计入口沿用项目指定 Figma 文件的「乱画画」Page；具体注册／投稿／名片 UI 改动须按已有设计评审约定处理。目录重组不代表批准界面改版。
+设计入口沿用项目指定 Figma 文件「宇宙」内的 Page「乱画画」；后续注册／投稿／名片及工作区 UI 改动须先经过设计评审再实现。
 
 ## 6. 维护规则
 
-- 视觉、信息层级、交互或资产政策改变时更新本文件；纯实现搬迁只更新 ARCH 中的路径。
-- 一个规则只在一处维护。内容保护和资格政策引用 PRD，不另造一套行为。
-- 旧探索记录不追加为这里的长画廊；有效约定写入本文件，原始记录保留出处。
-- 当前历史批准依据仍保留在 [direction-approved.md @ 77a2aea](https://github.com/huangyuanchang2006/ratemycourse/blob/77a2aea999b5c6be98601368097d7658d4bc3f9f/direction-approved.md)。原始文件已保存于本地归档，公开链接固定到迁移前提交，保留决定出处。
+- 视觉、信息层级、交互或资产政策改变时更新本文件；实现位置、module 接口或打包机制变化更新 [ARCH.md](ARCH.md)；产品对象与访问资格变化更新 [PRD.md](PRD.md)。
+- 一个规则只在一处维护；内容原文保护和资格政策引用 PRD，不另造一套行为。
+- 历史批准依据仍保留在 [direction-approved.md @ 77a2aea](https://github.com/huangyuanchang2006/ratemycourse/blob/77a2aea999b5c6be98601368097d7658d4bc3f9f/direction-approved.md)。
 
-当前实现定位：[Landing CSS](src/site/landing/landing.css)、[工作区 CSS](src/site/workspace.css)、[名片墙 CSS](src/identity/wall.css)，以及各 module 的入口。迁移没有统一两套色值或重新设计页面。
+当前实现定位：[Landing 装配](src/site/landing/index.js)、[海湾 Hero](src/site/landing/bay-hero.js)、[真实摘录数据](src/site/landing/previews.js)、[Landing CSS](src/site/landing/landing.css)、[工作区 CSS](src/site/workspace.css)、[名片墙 CSS](src/identity/wall.css)。
