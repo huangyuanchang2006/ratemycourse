@@ -252,3 +252,34 @@ footer,#auth-notice{font-size:13px;line-height:1.6}
 .term-picker{--control-line:#958b80}.term-picker .muted{font-size:14px;color:var(--muted)}.submission-indicators{display:grid;grid-template-columns:1fr 1fr;gap:24px}.submission-indicators fieldset{min-width:0;border:0;padding:0;margin:0}.submission-indicators legend{font-size:15px;font-weight:650}.submission-indicators select{font-size:16px}.submission-indicators .hint{font-size:13px}.review-preview-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}.review-preview-actions .button{font-size:15px}.review-draft-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.review-draft-actions .button{font-size:14px}.review-preview-header h2{margin-top:24px}.review-form-context h2{font-size:22px}.review-form-context .small{font-size:14px}#review-form textarea{font-size:16px;white-space:pre-wrap}#review-form .field label{font-size:14px}#review-form .optional{font-size:13px}#review-form .hint{font-size:13px}.review-preview .review-body p{white-space:pre-wrap}@media(max-width:780px){.submission-indicators{grid-template-columns:1fr;gap:24px}.review-draft-actions .button{font-size:13px}}
 .submission-indicators{grid-template-columns:1fr}.submission-options{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.submission-choice{position:relative;cursor:pointer;margin:0}.submission-choice input{position:absolute;top:13px;left:12px;width:18px;height:18px;margin:0}.submission-choice span{display:flex;align-items:center;min-height:46px;padding:10px 14px 10px 38px;border:1px solid #958b80;border-radius:7px;background:var(--surface);font-size:14px;font-weight:500}.submission-choice input:checked+span{background:var(--wine-soft);border-color:var(--wine);color:var(--wine)}.submission-choice input:focus-visible+span{outline:3px solid #176a91;outline-offset:3px}.indicator-clear{background:none;font-size:14px;min-height:44px;padding:8px 0}.contribution-background{margin-top:20px}.contribution-background summary{font-size:15px;font-weight:650;cursor:pointer;min-height:44px;padding:10px 0}.review-preview .review-body p{white-space:pre-wrap}
 @media(max-width:780px){.term-panel{width:min(390px,calc(100vw - 64px))}}
+
+/* Stage 2A: Save course toggle, My saved courses, and tiered reading unlock */
+.course-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.course-card-top .chips{flex:1;min-width:0}
+.save-toggle{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:9px 14px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:600;line-height:1.2;white-space:nowrap;flex-shrink:0;transition:border-color var(--motion-quick),background-color var(--motion-quick),color var(--motion-quick)}
+.save-toggle.compact{min-height:36px;padding:6px 11px;font-size:12px}
+.save-toggle .save-icon{fill:none;flex-shrink:0}
+.save-toggle:hover{border-color:var(--wine);color:var(--wine)}
+.save-toggle.is-saved{background:var(--wine-soft);border-color:var(--wine);color:var(--wine)}
+.save-toggle.is-saved .save-icon{fill:currentColor}
+.course-heading-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.course-heading-row .detail-title{flex:1;min-width:0}
+.unlock-banner{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 20px;margin:0 0 22px;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--wine);border-radius:8px}
+.unlock-banner strong{display:block;font-size:14px;margin-bottom:4px}
+.unlock-banner .small{margin:0}
+.unlock-banner .button{flex-shrink:0}
+.card-lock-note{margin:8px 0 14px;padding:10px 12px;background:var(--paper);border-radius:6px;color:var(--muted)}
+.filter-lock-hint{margin:8px 0 14px;padding:10px 12px;background:var(--paper);border-radius:6px}
+.reading-gate-card{padding:28px;background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--wine);border-radius:12px}
+.reading-gate-card h2{margin-bottom:10px}
+.reading-gate-card p{color:var(--muted);max-width:56ch}
+.reading-gate-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:18px}
+.saved-card .small{margin:0 0 12px}
+@media(max-width:780px){
+  .course-heading-row{flex-direction:column;align-items:stretch}
+  .course-heading-row .save-toggle{align-self:flex-start}
+  .unlock-banner{flex-direction:column;align-items:flex-start;gap:12px}
+  .unlock-banner .button{width:100%}
+  .save-toggle.compact{min-height:40px;padding:8px 12px}
+  .reading-gate-card{padding:22px 18px}
+}

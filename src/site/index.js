@@ -1,4 +1,4 @@
-const version = "20261126-bay-landing-1";
+const version = "20261127-stage2a-1";
 const root = new URL("../../", import.meta.url);
 const mode = () => (location.hash.startsWith("#/") ? "courses" : "landing");
 const initialMode = mode();

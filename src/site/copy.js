@@ -232,8 +232,27 @@ export const sourceLanguages = {
 Object.assign(copy.zh, {
   incompleteProfile: "请先补齐个人资料，再提交评价。",
   previewRequired: "请先预览公开内容。",
+  saved: "我的收藏",
+  savedLoginRequired: "登录后即可保存感兴趣的课程，并在「我的收藏」中随时查看。",
+  noSaved: "还没有保存课程。",
+  saveCourse: "保存课程",
+  savedCourse: "已保存",
+  courseSaved: "已保存到「我的收藏」。",
+  courseAlreadySaved: "这门课已在你的「我的收藏」中。",
+  courseUnsaved: "已从「我的收藏」移除。",
+  readingUnlocked: "基础信息已保存，现已解锁全部完整评价。",
 });
 Object.assign(copy.en, {
   incompleteProfile: "Complete your profile before submitting a review.",
   previewRequired: "Preview public content first.",
+  saved: "My saved courses",
+  savedLoginRequired:
+    "Sign in with Google to save courses and revisit them in My saved courses.",
+  noSaved: "No saved courses yet.",
+  saveCourse: "Save course",
+  savedCourse: "Saved",
+  courseSaved: "Saved to My saved courses.",
+  courseAlreadySaved: "Already in My saved courses.",
+  courseUnsaved: "Removed from My saved courses.",
+  readingUnlocked: "Basic details saved. Full course reviews are now unlocked.",
 });

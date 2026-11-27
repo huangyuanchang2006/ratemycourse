@@ -68,7 +68,13 @@ async function mountWorkspace() {
       catalog.selectAuthor(key);
       renderHeader();
     },
-    onAccountChange: () => contributions.reset(),
+    onProfileSaved: () => {
+      catalog.invalidate();
+    },
+    onAccountChange: () => {
+      contributions.reset();
+      catalog.reset();
+    },
     fail: (error) =>
       toast(t("serverError") + (error?.message || t("notReady"))),
   };
@@ -82,6 +88,16 @@ async function mountWorkspace() {
       sourceLanguages,
     }),
     access = createAdminAccess(client, renderHeader);
+
+  function showSaveFlash(flash) {
+    if (!flash) return;
+    if (flash.saved) {
+      toast(flash.alreadySaved ? t("courseAlreadySaved") : t("courseSaved"));
+    } else if (flash.error) {
+      toast(t("serverError") + flash.error);
+    }
+  }
+
   function renderHeader() {
     document.documentElement.lang = view.language === "zh" ? "zh-CN" : "en";
     $(".brand").setAttribute(
@@ -100,12 +116,12 @@ async function mountWorkspace() {
         : "Google sign-in establishes account ownership; it does not verify student status or course attendance.";
     $("#login-title").textContent =
       view.language === "zh"
-        ? "分享你的课程体验"
-        : "Share your course experience";
+        ? "使用 Google 继续"
+        : "Continue with Google";
     $("#login-description").textContent =
       view.language === "zh"
-        ? "浏览课程无需登录。登录后可提交体验、查看审核状态和编辑自己的投稿。"
-        : "Browse without signing in. Sign in to contribute, check moderation status, and edit your own submissions.";
+        ? "免费搜索官方课程信息；登录后可保存课程、解锁完整同学评价并提交自己的体验。"
+        : "Browse the official course catalog freely. Sign in to save courses, unlock full student experiences, and contribute your own.";
     $("#login-privacy").textContent =
       view.language === "zh"
         ? "登录邮箱不会显示在评价或个人名片中。此登录不读取 Gmail 邮件，也不会验证学籍。"
@@ -121,6 +137,7 @@ async function mountWorkspace() {
       view.language === "zh" ? "English" : "中文";
     const labels = {
       browse: t("browse"),
+      saved: t("saved"),
       mine: t("mine"),
       profile: t("profile"),
       guide: view.language === "zh" ? "选课指南" : "Registration guide",
@@ -168,17 +185,22 @@ async function mountWorkspace() {
     const current = route();
     if (
       !catalog.loaded &&
-      ["browse", "course", "share", "mine"].includes(current.path)
+      ["browse", "course", "share", "mine", "saved"].includes(current.path)
     )
       main.innerHTML = `<div class="empty-state"><span class="empty-icon">…</span><h2>${escapeHtml(t("loading"))}</h2></div>`;
     try {
-      if (["browse", "course", "share", "mine"].includes(current.path))
-        await catalog.load();
+      if (["browse", "course", "share", "mine", "saved"].includes(current.path))
+        await catalog.load({
+          forceSaved: current.path === "saved",
+          strictSaved: current.path === "saved",
+        });
       if (["browse", "people"].includes(current.path))
         await identity.loadContributors();
       if (version !== renderVersion) return;
       if (current.path === "course")
         await catalog.renderCourse(decodeURIComponent(current.id), version);
+      else if (current.path === "saved")
+        await catalog.renderSaved(version);
       else if (current.path === "share")
         await contributions.renderShare(
           current.params.get("edit") || "",
@@ -198,20 +220,22 @@ async function mountWorkspace() {
       contributions.afterRender(current);
       renderHeader();
       identity.syncContributorWall();
-      const metricPage =
-        {
-          course: "course",
-          share: "share",
-          mine: "mine",
-          profile: "profile",
-          people: "person",
-        }[current.path] || "browse";
-      metrics.page({
-        page: metricPage,
-        courseId:
-          metricPage === "course" ? catalog.canonical(current.id) : null,
-        viewKey: metricPage === "person" ? current.id : null,
-      });
+      const metricPage = {
+        browse: "browse",
+        course: "course",
+        share: "share",
+        mine: "mine",
+        profile: "profile",
+        people: "person",
+      }[current.path];
+      if (metricPage) {
+        metrics.page({
+          page: metricPage,
+          courseId:
+            metricPage === "course" ? catalog.canonical(current.id) : null,
+          viewKey: metricPage === "person" ? current.id : null,
+        });
+      }
       if (route().params.get("section") === "contributors")
         $("#contributors-wall")?.scrollIntoView({
           block: "start",
@@ -303,6 +327,11 @@ async function mountWorkspace() {
   listen(window, "resize", catalog.syncFilterPanel, { passive: true });
   listen(document, "toggle", catalog.toggle, { capture: true });
   listen(window, "sils:auth-error", () => toast(t("authError")));
+  listen(window, "rmc:saved-change", (event) => {
+    auth.consumeSaveFlash?.();
+    showSaveFlash(event.detail);
+    void catalog.refreshSaved?.();
+  });
   const wallTimer = setInterval(async () => {
     if (!document.hidden && route().path === "browse") {
       await identity.loadContributors(true);
@@ -322,6 +351,7 @@ async function mountWorkspace() {
   activePath = route().path;
   renderHeader();
   await identity.ready;
+  showSaveFlash(auth.consumeSaveFlash?.());
   await render();
 }
 void mountWorkspace().catch((error) => {

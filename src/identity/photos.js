@@ -148,9 +148,19 @@ export const photos = (() => {
       wallNo: "This card will not appear on the homepage",
     },
   };
-  function markup(language) {
+  function markup(language, { required = true } = {}) {
     const w = words[language] || words.en;
-    return `<section class="photo-editor"><h2>${w.title}</h2><p class="hint">${w.hint}</p><label for="profile-photo">${w.choose}</label><input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp"><p class="hint">${w.limit}</p><p id="photo-error" class="error" role="alert" hidden></p><div class="crop-tabs" role="tablist" aria-label="${w.title}">${["wall", "avatar"].map((kind, i) => `<button type="button" id="crop-${kind}-tab" role="tab" aria-selected="${!i}" aria-controls="crop-panel" data-photo-mode="${kind}">${w[kind]}</button>`).join("")}</div><div id="crop-panel" role="tabpanel" aria-labelledby="crop-wall-tab"><div class="crop-frame" id="crop-frame" data-shape="wall"><img alt="${w.title}" draggable="false"><span class="empty-photo">?</span></div></div><fieldset class="crop-controls">${[
+    const heading = required
+      ? w.title
+      : language === "zh"
+        ? "照片与构图（投稿与上墙需上传）"
+        : "Photo and framing (required to contribute / join wall)";
+    const hint = required
+      ? w.hint
+      : language === "zh"
+        ? "可以使用真人照、插画或风景图；只用于阅读评价时可先跳过。同一张图片分别调整横版名片和圆形头像。"
+        : "Portraits, illustrations, and landscapes are all welcome; optional while only reading reviews. Adjust the landscape card and round avatar separately.";
+    return `<section class="photo-editor"><h2>${heading}</h2><p class="hint">${hint}</p><label for="profile-photo">${w.choose}</label><input id="profile-photo" type="file" accept="image/jpeg,image/png,image/webp"><p class="hint">${w.limit}</p><p id="photo-error" class="error" role="alert" hidden></p><div class="crop-tabs" role="tablist" aria-label="${heading}">${["wall", "avatar"].map((kind, i) => `<button type="button" id="crop-${kind}-tab" role="tab" aria-selected="${!i}" aria-controls="crop-panel" data-photo-mode="${kind}">${w[kind]}</button>`).join("")}</div><div id="crop-panel" role="tabpanel" aria-labelledby="crop-wall-tab"><div class="crop-frame" id="crop-frame" data-shape="wall"><img alt="${heading}" draggable="false"><span class="empty-photo">?</span></div></div><fieldset class="crop-controls">${[
       ["zoom", 1, 3, 0.01],
       ["x", 0, 100, 1],
       ["y", 0, 100, 1],

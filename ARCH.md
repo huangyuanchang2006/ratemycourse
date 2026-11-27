@@ -1,6 +1,6 @@
 # RateMyCourse · Architecture
 
-更新：2026-11-26（日本时间）。**先通过本页定位 module，再按任务深入 implementation。** 产品行为见 [PRD.md](PRD.md)，视觉与交互见 [DESIGN.md](DESIGN.md)。
+更新：2026-11-27（日本时间）。**先通过本页定位 module，再按任务深入 implementation。** 产品行为见 [PRD.md](PRD.md)，视觉与交互见 [DESIGN.md](DESIGN.md)。
 
 源码按六个业务 module 组织，起点为 `77a2aea`。实际发布版本以正式站 `release-manifest.json` 中的 revision / mode 为准；本页描述当前源码及其打包发布方式。
 
@@ -54,10 +54,10 @@ flowchart TD
 
 | Module / 入口 | 隐藏的 implementation | 主要 interface |
 | --- | --- | --- |
-| [site](src/site/index.js) | 默认首页／课程模式路由、页面壳、语言、页面级事件装配；`landing/` 内含正式装配 [landing/index.js](src/site/landing/index.js)、单一职责海湾首屏 [bay-hero.js](src/site/landing/bay-hero.js)、真实精选摘录 [previews.js](src/site/landing/previews.js) 与 Shadow DOM 环形名片轮播 `student-carousel/`；[build-pages.mjs](src/site/build-pages.mjs) 负责装包与发布前断言 | HTML 入口启动；[workspace.js](src/site/workspace.js) 只装配业务 module，不包含业务表查询或投稿保存分支；[landing/index.js](src/site/landing/index.js) 只通过 `identity` 的 `getAuth` 与 `getContributorWall` 协作。 |
-| [catalog](src/catalog/index.js) | 列表／详情、公开字段投影、alias、缓存寿命与失效、筛选、原文与译文阅读 | `createCatalog` 为页面提供读取、渲染及交互；`createCatalogStore` 是可独立验证的读取 seam；目录规则亦从入口导出。 |
-| [contributions](src/contributions/index.js) | 新稿／改稿、原文 payload、学期、草稿、公开预览、确认、本人列表和人工复核 | `createContributions` 管理页面流程；`createContributionFlow` 隐藏作者与 revision、保存去重和持久化命令；`reviewPayload` 保留纯规则。 |
-| [identity](src/identity/index.js) | 会话、返回目标、资料资格、Profile、照片草稿／上传、签名图片缓存、公开名片及墙数据 | `getAuth`、`createIdentity`、`getContributorWall`、`profilePolicy`；作者筛选意图交回 site，不反向调用课程内部实现。 |
+| [site](src/site/index.js) | 默认首页／课程模式路由、页面壳、语言、页面级事件装配；`landing/` 内含正式装配 [landing/index.js](src/site/landing/index.js)、单一职责海湾首屏 [bay-hero.js](src/site/landing/bay-hero.js)、真实精选摘录 [previews.js](src/site/landing/previews.js) 与 Shadow DOM 环形名片轮播 `student-carousel/`；[build-pages.mjs](src/site/build-pages.mjs) 负责装包与发布前断言 | HTML 入口启动；[workspace.js](src/site/workspace.js) 只装配业务 module（含 `#/saved` 路由），不包含业务表查询或投稿保存分支；[landing/index.js](src/site/landing/index.js) 只通过 `identity` 的 `getAuth`、`getContributorWall` 与 `catalog` 的 `createSavedCourses` 协作。 |
+| [catalog](src/catalog/index.js) | 列表／详情、公开字段投影、alias、缓存寿命与失效、筛选、原文与译文阅读、`saved.js` 个人收藏状态与 RPC 封装、按阅读资格区分目录计数与全文读取 | `createCatalog` 为页面提供读取、渲染（含 `#/saved`）及交互；`createCatalogStore` 与 `createSavedCourses` 是可独立验证的读写 seam；目录规则亦从入口导出。 |
+| [contributions](src/contributions/index.js) | 新稿／改稿、原文 payload、学期、草稿、公开预览、确认、本人列表和人工复核 | `createContributions` 管理页面流程（未满 5 项跳转 `#/profile?onboarding=contribute`）；`createContributionFlow` 隐藏作者与 revision、保存去重和持久化命令；`reviewPayload` 保留纯规则。 |
+| [identity](src/identity/index.js) | 会话、返回目标、跨 OAuth 保存意图恢复、3→5 分步资料资格、Profile、照片草稿／上传、签名图片缓存、公开名片及墙数据 | `getAuth`、`createIdentity`、`getContributorWall`、`profilePolicy`（区分 `readingComplete` 3 项与 `complete` 5 项）；作者筛选意图交回 site，不反向调用课程内部实现。 |
 | [admin](src/admin/index.js) | 管理员资格入口、统计及私有资料目录 | `createAdminAccess` 给导航提供资格状态，`mountAdmin` 管理受权限限制的视图。最终权限由后端执行。 |
 | [platform](src/platform/index.js) | Supabase SDK 加载和唯一 client、公开配置、统计传输、表单忙碌反馈及分属各业务的草稿存储机制 | `getPlatform`、`getMetrics` 及浏览器基础能力；业务查询投影和规则继续留在所属 module。 |
 

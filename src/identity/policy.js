@@ -1,5 +1,6 @@
 export const profilePolicy = (() => {
   "use strict";
+  const readingFields = ["display_name", "programme", "study_year"];
   const fields = [
     "display_name",
     "bio",
@@ -7,16 +8,26 @@ export const profilePolicy = (() => {
     "study_year",
     "avatar_path",
   ];
-  const missing = (profile) =>
-    fields.filter((key) => !String(profile?.[key] || "").trim());
+  const blank = (value) =>
+    !String(value || "")
+      .replace(/[\s\u00a0\u3000]+/g, "")
+      .trim();
+  const readingMissing = (profile) =>
+    readingFields.filter((key) => blank(profile?.[key]));
+  const readingComplete = (profile) => readingMissing(profile).length === 0;
+  const missing = (profile) => fields.filter((key) => blank(profile?.[key]));
   const complete = (profile) => missing(profile).length === 0;
-  const defaults = (profile) =>
-    profile
-      ? {
-          is_public: Boolean(profile.is_public),
-          show_on_wall: Boolean(profile.is_public && profile.show_on_wall),
-        }
-      : { is_public: true, show_on_wall: true };
+  const defaults = (profile, { fullStep = true } = {}) => {
+    if (profile) {
+      return {
+        is_public: Boolean(profile.is_public),
+        show_on_wall: Boolean(profile.is_public && profile.show_on_wall),
+      };
+    }
+    return fullStep
+      ? { is_public: true, show_on_wall: true }
+      : { is_public: false, show_on_wall: false };
+  };
   function destination(value, base) {
     try {
       const root = new URL(".", base),
@@ -37,5 +48,14 @@ export const profilePolicy = (() => {
       return new URL("./#/browse", base).href;
     }
   }
-  return Object.freeze({ fields, missing, complete, defaults, destination });
+  return Object.freeze({
+    readingFields,
+    fields,
+    readingMissing,
+    readingComplete,
+    missing,
+    complete,
+    defaults,
+    destination,
+  });
 })();

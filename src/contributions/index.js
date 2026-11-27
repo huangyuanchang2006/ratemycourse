@@ -170,7 +170,7 @@ export function createContributions({
       return;
     if (!identity.complete(identity.profile)) {
       const target = `./${window.location.hash || "#/share"}`;
-      window.location.hash = `/profile?onboarding=1&return=${encodeURIComponent(target)}`;
+      window.location.hash = `/profile?onboarding=contribute&return=${encodeURIComponent(target)}`;
       return;
     }
     const current = await flow.begin(editId, () => version === view.version);

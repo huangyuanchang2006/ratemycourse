@@ -1,8 +1,8 @@
 # RateMyCourse · Design
 
-更新：2026-11-26（日本时间）。这是现行视觉与交互约定的入口，不是旧原型集合。产品规则见 [PRD.md](PRD.md)，module 及资产迁移见 [ARCH.md](ARCH.md)。
+更新：2026-11-27（日本时间）。这是现行视觉与交互约定的入口，不是旧原型集合。产品规则见 [PRD.md](PRD.md)，module 及资产迁移见 [ARCH.md](ARCH.md)。
 
-状态：首页已切换为获批的**蓝调「岩岸海湾」**正式版本；课程工作区（`#/browse`、`#/course/:id`、`#/share`、`#/profile`、`guide.html`、`analytics.html`）保持既有暖纸／酒红界面与交互不变。
+状态：首页为获批的**蓝调「岩岸海湾」**正式版本；课程工作区（`#/browse`、`#/saved`、`#/course/:id`、`#/share`、`#/profile`、`guide.html`、`analytics.html`）沿用暖纸／酒红界面语汇。Stage 2A 在首页课程原话卡及工作区课程卡／详情页接入直接对象级「保存课程」切换按钮、工作区 `#/saved` 收藏页、未解锁全文门禁卡片与 3→5 分步资料表单（遵循 `DT-001` 直觉交互，不重设计整站工作区）。
 
 ## 1. 设计方向
 
