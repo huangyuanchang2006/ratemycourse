@@ -283,3 +283,44 @@ footer,#auth-notice{font-size:13px;line-height:1.6}
   .save-toggle.compact{min-height:40px;padding:8px 12px}
   .reading-gate-card{padding:22px 18px}
 }
+
+/* Stage 2B: UX-001 mobile sticky search, scope pills, 0-review open-course polish, and mobile-native touch baseline */
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+button,[role="button"],.pill,.scope-pill,.save-toggle{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.toast{bottom:calc(25px + env(safe-area-inset-bottom,0px))}
+.course-card h3{overflow-wrap:anywhere}
+.browse-search-bar{margin:0 0 22px}
+.browse-search-bar .search{max-width:740px}
+.search-clear{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:transparent;color:var(--muted);font-size:20px;line-height:1;flex-shrink:0;transition:background-color 120ms ease,color 120ms ease}
+.search-clear:active{background:var(--paper);color:var(--ink)}
+.scope-bar{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.scope-pill{display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font-size:13px;font-weight:600;line-height:1.2;transition:transform 100ms ease-out,border-color 140ms ease,background-color 140ms ease,color 140ms ease}
+.scope-pill span{font-size:12px;font-weight:500;color:var(--muted);font-variant-numeric:tabular-nums}
+.scope-pill:active,.save-toggle:active{transform:scale(.97)}
+.scope-pill.is-active{background:var(--wine-soft);border-color:var(--wine);color:var(--wine)}
+.scope-pill.is-active span{color:var(--wine)}
+.card-official-note{margin:6px 0 14px;color:var(--muted)}
+.official-course-info.is-primary{margin-top:0;margin-bottom:22px;padding:22px 24px;background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--green);border-radius:12px}
+.load-more-wrap{display:flex;justify-content:center;margin-top:24px}
+.load-more-wrap .button{min-width:240px}
+@media(hover:hover) and (pointer:fine){
+  .scope-pill:hover{border-color:var(--wine);color:var(--wine)}
+  .search-clear:hover{background:var(--paper);color:var(--ink)}
+}
+@media(hover:none){
+  .course-card:hover,.programme-card:hover,.save-toggle:hover,.button:hover,.button.secondary:hover{border-color:var(--line);box-shadow:none}
+  .save-toggle:hover{color:var(--ink)}
+  .save-toggle.is-saved:hover{border-color:var(--wine);color:var(--wine)}
+  .button:hover{background:var(--wine);border-color:var(--wine);color:white}
+  .button.secondary:hover{background:var(--surface);color:var(--ink);border-color:var(--line)}
+}
+@media(max-width:780px){
+  .browse-search-bar{position:sticky;top:var(--site-header-height,74px);z-index:8;margin:0 -18px 18px;padding:10px 18px;background:rgba(246,243,238,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .browse-search-bar .search{max-width:none;box-shadow:0 2px 10px rgba(41,37,34,.06)}
+  .browse-search-bar .search input{font-size:16px}
+  .results-meta{scroll-margin-top:calc(var(--site-header-height,74px) + 76px)}
+  .scope-bar{gap:7px}
+  .scope-pill{min-height:40px;padding:8px 13px;font-size:13px}
+  .load-more-wrap .button{width:100%}
+  .official-course-info.is-primary{padding:18px}
+}

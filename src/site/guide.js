@@ -34,7 +34,7 @@ import { getMetrics } from "../platform/index.js";
       <ul class="guide-links">
         <li><a class="text-link" href="${escapeHtml(item.url)}" target="_blank" rel="noreferrer">${language === "zh" ? "官方资料" : "Official website"} ↗</a></li>
         <li><a class="text-link" href="./#/browse?provider=${encodeURIComponent(item.id)}">${language === "zh" ? "浏览课程体验" : "Browse course experiences"}</a></li>
-        <li><a class="text-link" href="./#/share?provider=${encodeURIComponent(item.id)}">${language === "zh" ? "添加课程并分享体验" : "Add a course and share an experience"} →</a></li>
+        ${item.submittable === false ? `<li><a class="text-link" href="./#/share">${language === "zh" ? "为已收录开放课分享体验" : "Share an experience for a listed course"} →</a></li>` : `<li><a class="text-link" href="./#/share?provider=${encodeURIComponent(item.id)}">${language === "zh" ? "添加课程并分享体验" : "Add a course and share an experience"} →</a></li>`}
       </ul></article>`,
       )
       .join("");

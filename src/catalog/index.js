@@ -8,6 +8,7 @@ export {
   providerLabel,
   providerMatches,
   providers,
+  browseProviders,
   groups,
   contentLanguages,
   normalizeTerm,
@@ -33,6 +34,7 @@ export function createCatalog({ client, view, identity }) {
 
   const store = createCatalogStore(client);
   const saved = createSavedCourses(client);
+  const PAGE_SIZE = 36;
   let query = "",
     providerFilter = "",
     languageFilter = "",
@@ -40,7 +42,9 @@ export function createCatalog({ client, view, identity }) {
     groupFilter = "",
     fitFilter = "",
     avoidFilter = "",
-    authorFilter = "";
+    authorFilter = "",
+    reviewedOnly = false,
+    visibleLimit = PAGE_SIZE;
   let hasEnteredBrowse = false,
     filtersExpanded = false;
 
@@ -67,9 +71,14 @@ export function createCatalog({ client, view, identity }) {
 
   const teachingLanguage = (value) =>
     view.language === "zh"
-      ? { English: "英语", Japanese: "日语", Chinese: "中文", Other: "其他" }[
-          value
-        ] || value
+      ? {
+          English: "英语",
+          Japanese: "日语",
+          Chinese: "中文",
+          "English / Japanese": "英语 / 日语",
+          "Japanese / English": "日语 / 英语",
+          Other: "其他",
+        }[value] || value
       : value;
 
   function syncFilterPanel() {
@@ -239,7 +248,9 @@ export function createCatalog({ client, view, identity }) {
     const lockedHint =
       !store.fullReviewsUnlocked && totalReviews > 0
         ? `<p class="card-lock-note small">${identity.session ? (zh ? `共有 ${totalReviews} 条同学体验 · 补齐 3 项资料后可阅读全文` : `${totalReviews} student ${totalReviews === 1 ? "experience" : "experiences"} · complete 3 profile details to read`) : zh ? `共有 ${totalReviews} 条同学体验 · 登录后可阅读全文` : `${totalReviews} student ${totalReviews === 1 ? "experience" : "experiences"} · sign in to read`}</p>`
-        : "";
+        : totalReviews === 0
+          ? `<p class="card-official-note small">${zh ? "官方课程目录 · 暂未收录同学评价" : "Official catalog listing · No student reviews yet"}</p>`
+          : "";
     return `<article class="course-card">
       <div class="course-card-top"><div class="chips"><span class="pill">${escapeHtml(rules.providerLabel(course.provider, view.language) || "RateMyCourse")}</span>${course.language ? `<span class="pill">${escapeHtml(teachingLanguage(course.language))}</span>` : ""}</div>${saveButtonMarkup(course.id)}</div>
       <h3><a href="./#/course/${encodeURIComponent(course.id)}">${escapeHtml(course.title)}</a></h3>
@@ -269,10 +280,10 @@ export function createCatalog({ client, view, identity }) {
   }
 
   function shareUrl() {
-    return `./#/share${providerFilter ? `?provider=${encodeURIComponent(providerFilter)}` : ""}`;
+    return `./#/share${rules.providers.includes(providerFilter) ? `?provider=${encodeURIComponent(providerFilter)}` : ""}`;
   }
 
-  function renderBrowse() {
+  function browseResultsMarkup() {
     const unlocked = store.fullReviewsUnlocked;
     const author = unlocked ? selectedAuthor() : {};
     const filtered = rules.filterCatalog(
@@ -286,9 +297,46 @@ export function createCatalog({ client, view, identity }) {
         group: unlocked ? groupFilter : "",
         fit: unlocked ? fitFilter : "",
         avoid: unlocked ? avoidFilter : "",
+        reviewedOnly,
+        reviewCounts: (id) => store.reviewCount(id),
+        sortByReviews: true,
         ...(unlocked ? author : {}),
       },
     );
+    const zh = view.language === "zh";
+    const reviewedTotal = store.courses.filter(
+      (course) => store.reviewCount(course.id) > 0,
+    ).length;
+    const gecTotal = store.courses.filter(
+      (course) => course.provider === "GEC",
+    ).length;
+    const shown = filtered.slice(0, visibleLimit);
+    const remaining = filtered.length - shown.length;
+    const scopeBar = `<div class="scope-bar" role="group" aria-label="${zh ? "课程范围" : "Course scope"}">
+      <button class="scope-pill${!reviewedOnly ? " is-active" : ""}" type="button" data-scope="all" aria-pressed="${!reviewedOnly}">${zh ? "全部课程" : "All courses"}<span>${store.courses.length}</span></button>
+      <button class="scope-pill${reviewedOnly ? " is-active" : ""}" type="button" data-scope="reviewed" aria-pressed="${reviewedOnly}">${zh ? "有同学评价" : "With reviews"}<span>${reviewedTotal}</span></button>
+      ${gecTotal > 0 ? `<button class="scope-pill${providerFilter === "GEC" ? " is-active" : ""}" type="button" data-toggle-gec aria-pressed="${providerFilter === "GEC"}">${zh ? "GEC 全校开放课" : "GEC Open Courses"}<span>${gecTotal}</span></button>` : ""}
+    </div>`;
+    const loadMore =
+      remaining > 0
+        ? `<div class="load-more-wrap"><button class="button secondary" type="button" data-action="load-more">${zh ? `显示更多课程（还有 ${remaining} 门）` : `Show more courses (${remaining} remaining)`}</button></div>`
+        : "";
+    return `${scopeBar}<p class="results-meta" role="status" aria-live="polite"><span>${filtered.length} / ${store.courses.length}${unlocked && authorFilter ? ` · ${escapeHtml(author.label)}` : ""}</span><span>${zh ? "有同学评价的课程优先展示 · 每位作者的体验分别呈现。" : "Reviewed courses appear first · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${shown.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2><p>${zh ? "没有找到这门课？添加课程资料并分享第一条体验。" : "Course missing? Add its details and share the first experience."}</p>${link(shareUrl(), t("add"), "button")}${button("clear-filters", zh ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div>${loadMore}`;
+  }
+
+  function renderBrowseResults() {
+    const container = $("#browse-results");
+    if (!container) {
+      renderBrowse();
+      return;
+    }
+    container.innerHTML = browseResultsMarkup();
+    const clearBtn = $('[data-action="clear-search"]');
+    if (clearBtn) clearBtn.hidden = !query;
+  }
+
+  function renderBrowse() {
+    const unlocked = store.fullReviewsUnlocked;
     const zh = view.language === "zh";
     const option = (value, label, selected) =>
       `<option value="${escapeHtml(value)}" ${selected === value ? "selected" : ""}>${escapeHtml(label)}</option>`;
@@ -302,19 +350,20 @@ export function createCatalog({ client, view, identity }) {
             authorFilter,
             fitFilter,
             avoidFilter,
+            reviewedOnly ? "reviewed" : "",
           ]
-        : [providerFilter, languageFilter]
+        : [providerFilter, languageFilter, reviewedOnly ? "reviewed" : ""]
     ).filter(Boolean).length;
     main.innerHTML = `<section class="hero">
       <div><p class="eyebrow">${zh ? "早稻田大学" : "WASEDA UNIVERSITY"}</p><h1>${zh ? "找到适合你的课程。" : "Find the courses that fit you."}</h1>
-      <p class="subtext"><span class="intro-full">${zh ? "已开放早稻田全部 13 个本科学部及 JCulP、CJL 的目录与投稿入口。免费搜索官方课程信息并保存感兴趣的课；登录并填写 3 项基础信息后可阅读全部同学体验。" : "Search listed courses across all 13 Waseda undergraduate schools plus JCulP and CJL, and save courses to your list. Sign in and add 3 quick details to read all full student experiences."}</span><span class="intro-compact">${zh ? "浏览早稻田全部 13 个学部与 CJL，保存课程并解锁真实修课体验。" : "Explore all 13 Waseda schools and CJL. Save courses and unlock real experiences."}</span></p>
-      <div class="search"><input id="course-search" type="search" value="${escapeHtml(query)}" placeholder="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}"><button class="button" type="button" data-action="search">${zh ? "搜索" : "Search"}</button></div>
+      <p class="subtext"><span class="intro-full">${zh ? "涵盖早稻田全部 13 个本科学部、GEC 全校开放课及 JCulP、CJL。免费搜索官方课程信息并保存感兴趣的课；登录并填写 3 项基础信息后可阅读全部同学体验。" : "Search listed courses across all 13 Waseda undergraduate schools, GEC Open Courses, JCulP, and CJL. Save courses freely, and sign in with 3 quick details to read all full student experiences."}</span><span class="intro-compact">${zh ? "浏览早稻田全校开放课与各学部，保存课程并解锁真实修课体验。" : "Explore Waseda open courses and schools. Save courses and unlock real experiences."}</span></p>
       </div><aside class="hero-example"><span class="pill green">${zh ? "免费选课指南" : "FREE REGISTRATION GUIDE"}</span><h2>${zh ? "第一次选课？" : "New to course registration?"}</h2><p>${zh ? "从你的学部／项目出发，找到官方注册说明、课程要求和选课前检查项。" : "Find the official registration instructions, curriculum links, and a short checklist for your programme."}</p><a class="button secondary" href="guide.html"><span class="guide-full">${zh ? "打开选课指南" : "Open the guide"}</span><span class="guide-compact">${zh ? "第一次选课？查看指南" : "New to registration? Open the guide"}</span> ↗</a></aside>
     </section>
+    <div class="browse-search-bar"><div class="search"><input id="course-search" type="search" enterkeyhint="search" autocomplete="off" value="${escapeHtml(query)}" placeholder="${escapeHtml(t("search"))}" aria-label="${escapeHtml(t("search"))}"><button class="search-clear" type="button" data-action="clear-search" aria-label="${zh ? "清空搜索" : "Clear search"}"${query ? "" : " hidden"}>×</button><button class="button" type="button" data-action="search">${zh ? "搜索" : "Search"}</button></div></div>
     ${unlockBannerMarkup("#/browse")}
     <div class="page-heading browse-heading"><div><h2>${escapeHtml(t("browse"))}</h2></div><a class="button" href="${escapeHtml(shareUrl())}"><span class="contribute-full">${escapeHtml(t("add"))}</span><span class="contribute-compact">${zh ? "分享体验" : "Contribute"}</span></a></div>
     <div class="browse"><details class="filter-panel"><summary>${zh ? "筛选课程" : "Filter courses"}<span>${activeFilterCount || (zh ? "全部课程" : "All courses")}</span></summary><form class="filters" id="browse-filters"><h2>${zh ? "筛选课程" : "Filter courses"}</h2>
-      <div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select id="provider-filter" name="provider"><option value="">${escapeHtml(t("all"))}</option>${rules.providers.map((item) => option(item, rules.providerLabel(item, view.language), providerFilter)).join("")}</select></div>
+      <div class="filter"><label for="provider-filter">${escapeHtml(t("provider"))}</label><select id="provider-filter" name="provider"><option value="">${escapeHtml(t("all"))}</option>${rules.browseProviders.map((item) => option(item, rules.providerLabel(item, view.language), providerFilter)).join("")}</select></div>
       <div class="filter"><label for="language-filter">${escapeHtml(t("language"))}</label><select id="language-filter" name="language">${option("", zh ? "全部语言" : "All languages", languageFilter)}${[
         ...new Set(
           store.courses.map((course) => course.language).filter(Boolean),
@@ -333,7 +382,7 @@ export function createCatalog({ client, view, identity }) {
       <details class="audience-filter" ${fitFilter || avoidFilter ? "open" : ""}><summary>${zh ? "更多筛选：适合／不适合" : "More filters: fit and avoid"}</summary><div class="filter"><label for="fit-filter">${escapeHtml(t("fit"))}</label><input id="fit-filter" name="fit" value="${escapeHtml(fitFilter)}"></div><div class="filter"><label for="avoid-filter">${escapeHtml(t("avoid"))}</label><input id="avoid-filter" name="avoid" value="${escapeHtml(avoidFilter)}"></div><p class="hint">${zh ? "按当前显示语言匹配。同一条体验须同时满足各项条件。" : "Matches the displayed language. All conditions must match the same experience."}</p><button class="button secondary" type="submit">${zh ? "应用筛选" : "Apply filters"}</button></details>`
           : `<p class="hint filter-lock-hint">${zh ? "课程负担、小组合作与作者筛选将在解锁完整评价后开放。" : "Workload, group-work, and contributor filters unlock with full reviews."}</p>`
       }${button("clear-filters", zh ? "清除筛选" : "Clear filters", "quiet filter-reset")}
-    </form></details><section><p class="results-meta" role="status" aria-live="polite"><span>${filtered.length} / ${store.courses.length}${unlocked && authorFilter ? ` · ${escapeHtml(author.label)}` : ""}</span><span>${zh ? "条课程记录 · 每位作者的体验分别呈现。" : "catalog records · Each contributor’s experience is shown separately."}</span></p><div class="course-grid">${filtered.map(courseCard).join("") || `<div class="empty-state"><h2>${escapeHtml(t("empty"))}</h2><p>${zh ? "没有找到这门课？添加课程资料并分享第一条体验。" : "Course missing? Add its details and share the first experience."}</p>${link(shareUrl(), t("add"), "button")}${button("clear-filters", zh ? "清除筛选" : "Clear filters", "button secondary")}</div>`}</div></section></div>`;
+    </form></details><section id="browse-results">${browseResultsMarkup()}</section></div>`;
     syncFilterPanel();
     if (!hasEnteredBrowse) {
       hasEnteredBrowse = true;
@@ -561,14 +610,15 @@ export function createCatalog({ client, view, identity }) {
         ? lockedCard
         : `<div class="empty-state"><h2>${escapeHtml(t("noReviews"))}</h2>${proposalButton}</div>`;
 
+    const officialInfoBlock = `<section class="official-course-info${totalCount === 0 ? " is-primary" : ""}" aria-labelledby="official-course-title"><h2 id="official-course-title">${zh ? "官方课程信息" : "Official course information"}</h2>
+      <dl class="course-facts"><div><dt>${escapeHtml(t("courseCode"))}</dt><dd>${escapeHtml(course.course_code || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div><div><dt>${escapeHtml(t("language"))}</dt><dd>${escapeHtml(teachingLanguage(course.language) || "—")}</dd></div></dl>
+      <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${zh ? "暂无官方链接" : "No official syllabus link listed"}</span>`}</div></section>`;
+
     main.innerHTML = `<div class="crumb"><a href="./#/browse">${escapeHtml(t("browse"))}</a><span>›</span><span>${escapeHtml(rules.providerLabel(course.provider, view.language))}</span></div>
       <header class="course-heading"><div class="course-heading-row"><h1 class="detail-title">${escapeHtml(course.title)}</h1>${saveButtonMarkup(course.id, { compact: false })}</div>
       <dl class="course-summary"><div><dt>${zh ? "教师（作者记录）" : "Instructor (author-reported)"}</dt><dd>${escapeHtml(teachers.join(" / ") || "—")}</dd></div><div><dt>${escapeHtml(t("term"))}</dt><dd>${escapeHtml(terms.join(" / ") || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div></dl></header>
       <h2 class="visually-hidden" id="course-experiences-title">${zh ? "修课体验" : "Student experiences"} (${totalCount})</h2>
-      <div class="detail-layout"><div class="detail-reading"><section class="review-stack" aria-labelledby="course-experiences-title">${reviewsBlock}</section>
-      <section class="official-course-info" aria-labelledby="official-course-title"><h2 id="official-course-title">${zh ? "官方课程信息" : "Official course information"}</h2>
-      <dl class="course-facts"><div><dt>${escapeHtml(t("courseCode"))}</dt><dd>${escapeHtml(course.course_code || "—")}</dd></div><div><dt>${escapeHtml(t("credits"))}</dt><dd>${escapeHtml(course.credits ?? "—")}</dd></div><div><dt>${escapeHtml(t("language"))}</dt><dd>${escapeHtml(teachingLanguage(course.language) || "—")}</dd></div></dl>
-      <div class="syllabus-row">${syllabi.length ? syllabi.map((url, i) => `<a class="text-link" href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(t("syllabus"))}${syllabi.length > 1 ? ` ${i + 1}` : ""} ↗</a>`).join("") : `<span class="small">${zh ? "暂无官方链接" : "No official syllabus link listed"}</span>`}</div></section></div>
+      <div class="detail-layout"><div class="detail-reading">${totalCount === 0 ? `${officialInfoBlock}<section class="review-stack" aria-labelledby="course-experiences-title">${reviewsBlock}</section>` : `<section class="review-stack" aria-labelledby="course-experiences-title">${reviewsBlock}</section>${officialInfoBlock}`}</div>
       <aside><div class="side-card green"><h3>${zh ? "分享你的视角" : "Add your perspective"}</h3><p>${zh ? "每条评价保留作者自己的课程负担和适合度，不做平均分排名。" : "Each contribution keeps the author’s own workload and fit notes; experiences are not averaged into a rating."}</p>${proposalButton}</div></aside></div>`;
   }
 
@@ -672,9 +722,12 @@ export function createCatalog({ client, view, identity }) {
     shareUrl,
     selectedAuthor,
     enter(current) {
-      providerFilter = rules.providers.includes(current.params.get("provider"))
+      providerFilter = rules.browseProviders.includes(
+        current.params.get("provider"),
+      )
         ? current.params.get("provider")
         : "";
+      visibleLimit = PAGE_SIZE;
       if (current.params.has("author"))
         authorFilter = "profile:" + current.params.get("author");
       else if (current.params.has("legacy_author"))
@@ -697,6 +750,8 @@ export function createCatalog({ client, view, identity }) {
         fitFilter =
         avoidFilter =
           "";
+      reviewedOnly = false;
+      visibleLimit = PAGE_SIZE;
       authorFilter = key;
       syncAuthorRoute();
       renderBrowse();
@@ -717,10 +772,43 @@ export function createCatalog({ client, view, identity }) {
         identity.login("community" + (location.hash || "#/browse"));
         return true;
       }
+      const scopeBtn = event.target.closest("[data-scope]");
+      if (scopeBtn) {
+        event.preventDefault();
+        reviewedOnly = scopeBtn.dataset.scope === "reviewed";
+        visibleLimit = PAGE_SIZE;
+        renderBrowseResults();
+        return true;
+      }
+      if (event.target.closest("[data-toggle-gec]")) {
+        event.preventDefault();
+        providerFilter = providerFilter === "GEC" ? "" : "GEC";
+        visibleLimit = PAGE_SIZE;
+        syncAuthorRoute();
+        renderBrowse();
+        return true;
+      }
       const action = event.target.closest("[data-action]")?.dataset.action;
+      if (action === "clear-search") {
+        query = "";
+        visibleLimit = PAGE_SIZE;
+        const input = $("#course-search");
+        if (input) {
+          input.value = "";
+          input.focus();
+        }
+        renderBrowseResults();
+        return true;
+      }
+      if (action === "load-more") {
+        visibleLimit += PAGE_SIZE;
+        renderBrowseResults();
+        return true;
+      }
       if (action === "search") {
         query = $("#course-search")?.value || "";
-        renderBrowse();
+        visibleLimit = PAGE_SIZE;
+        renderBrowseResults();
         $(".results-meta")?.scrollIntoView({
           block: "start",
           behavior: "instant",
@@ -737,6 +825,8 @@ export function createCatalog({ client, view, identity }) {
           avoidFilter =
           authorFilter =
             "";
+        reviewedOnly = false;
+        visibleLimit = PAGE_SIZE;
         syncAuthorRoute();
         renderBrowse();
         return true;
@@ -746,6 +836,7 @@ export function createCatalog({ client, view, identity }) {
     handleChange(event) {
       if (!event.target.matches("#browse-filters select")) return;
       const id = event.target.id;
+      visibleLimit = PAGE_SIZE;
       readBrowseFilters();
       renderBrowse();
       document.getElementById(id)?.focus({ preventScroll: true });
@@ -753,14 +844,13 @@ export function createCatalog({ client, view, identity }) {
     handleInput(event) {
       if (!event.target.matches("#course-search")) return;
       query = event.target.value;
-      renderBrowse();
-      const input = $("#course-search");
-      input?.focus();
-      input?.setSelectionRange(query.length, query.length);
+      visibleLimit = PAGE_SIZE;
+      renderBrowseResults();
     },
     handleSubmit(event) {
       if (event.target.id !== "browse-filters") return false;
       event.preventDefault();
+      visibleLimit = PAGE_SIZE;
       readBrowseFilters();
       renderBrowse();
       return true;

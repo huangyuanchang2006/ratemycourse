@@ -122,8 +122,22 @@ const providerCatalog = [
     url: "https://www.waseda.jp/inst/cjl/en/students/registration/",
     kind: "centre",
   },
+  {
+    id: "GEC",
+    zh: "GEC 全球教育中心（全校开放课）",
+    ja: "グローバルエデュケーションセンター（全学オープン科目）",
+    en: "GEC · Global Education Center (Open Courses)",
+    url: "https://www.waseda.jp/inst/gec/en/undergraduate/registration/",
+    kind: "centre",
+    submittable: false,
+  },
 ];
-const providers = providerCatalog.map((provider) => provider.id);
+// Keep `providers` restricted to the 15 DB-allowed `suggested_course_provider` values
+// while `browseProviders` includes GEC open courses for catalog browsing & search.
+const providers = providerCatalog
+  .filter((provider) => provider.submittable !== false)
+  .map((provider) => provider.id);
+const browseProviders = providerCatalog.map((provider) => provider.id);
 const providerInfo = (value) =>
   providerCatalog.find((provider) => provider.id === value);
 const providerLabel = (value, language = "en") => {
@@ -199,7 +213,15 @@ function filterCatalog(courses, reviews, filters) {
       filters.author ||
       authorIds,
   );
-  return courses.flatMap((course) => {
+  const countFor = (course, allCount) => {
+    if (allCount > 0) return allCount;
+    if (typeof filters.reviewCounts === "function")
+      return Number(filters.reviewCounts(course.id) || 0);
+    if (filters.reviewCounts && typeof filters.reviewCounts === "object")
+      return Number(filters.reviewCounts[course.id] || 0);
+    return allCount;
+  };
+  const results = courses.flatMap((course) => {
     if (
       (filters.provider &&
         !providerMatches(course.provider, filters.provider)) ||
@@ -207,6 +229,8 @@ function filterCatalog(courses, reviews, filters) {
     )
       return [];
     const all = reviews.filter((review) => review.course_id === course.id);
+    const reviewCount = countFor(course, all.length);
+    if (filters.reviewedOnly && reviewCount === 0) return [];
     const matching = all.filter(
       (review) =>
         (authorIds
@@ -246,9 +270,27 @@ function filterCatalog(courses, reviews, filters) {
     )
       return [];
     return [
-      { course, reviews: matching, totalReviews: all.length, hasReviewFilters },
+      {
+        course,
+        reviews: matching,
+        totalReviews: all.length,
+        reviewCount,
+        hasReviewFilters,
+      },
     ];
   });
+  if (filters.sortByReviews) {
+    results.sort((a, b) => {
+      const aHas = a.reviewCount > 0 ? 1 : 0;
+      const bHas = b.reviewCount > 0 ? 1 : 0;
+      if (bHas !== aHas) return bHas - aHas;
+      if (b.reviewCount !== a.reviewCount) return b.reviewCount - a.reviewCount;
+      return String(a.course.title || "").localeCompare(
+        String(b.course.title || ""),
+      );
+    });
+  }
+  return results;
 }
 
 export {
@@ -257,6 +299,7 @@ export {
   providerLabel,
   providerMatches,
   providers,
+  browseProviders,
   groups,
   contentLanguages,
   terms,
